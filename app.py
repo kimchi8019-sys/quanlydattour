@@ -151,8 +151,12 @@ def hotel_night_multiplier(d: date):
 # ----------------------------------------------------------------------------
 # DATABASE OPERATORS (MySQL Aiven)
 # ----------------------------------------------------------------------------
+# Tự động xóa bảng cũ bị sai cấu trúc và tạo lại bảng mới chuẩn
 DDL = [
-    """CREATE TABLE IF NOT EXISTS bookings (
+    "DROP TABLE IF EXISTS booking_lines",
+    "DROP TABLE IF EXISTS booking_guests",
+    "DROP TABLE IF EXISTS bookings",
+    """CREATE TABLE bookings (
         code VARCHAR(20) PRIMARY KEY,
         created_at DATETIME NOT NULL,
         customer VARCHAR(120) NOT NULL,
@@ -178,7 +182,7 @@ DDL = [
         refund_amount DECIMAL(14,2) NULL,
         INDEX idx_phone (phone), INDEX idx_email (email), INDEX idx_depart (depart_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
-    """CREATE TABLE IF NOT EXISTS booking_guests (
+    """CREATE TABLE booking_guests (
         id INT AUTO_INCREMENT PRIMARY KEY,
         booking_code VARCHAR(20) NOT NULL,
         guest_no INT NOT NULL,
@@ -186,7 +190,7 @@ DDL = [
         age_group VARCHAR(60),
         FOREIGN KEY (booking_code) REFERENCES bookings(code) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
-    """CREATE TABLE IF NOT EXISTS booking_lines (
+    """CREATE TABLE booking_lines (
         id INT AUTO_INCREMENT PRIMARY KEY,
         booking_code VARCHAR(20) NOT NULL,
         category VARCHAR(40),
