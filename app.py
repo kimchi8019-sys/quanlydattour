@@ -23,6 +23,9 @@ DB_CONFIG = {
     "charset": "utf8mb4",
 }
 
+# GEMINI API KEY FIX CỐ ĐỊNH
+API_KEY = "AQ.Ab8RN6IM461mnzeOQSAixx99OmjFuxYko81rzl1en1224_grmQ"
+
 VAT_RATE = 0.08
 DEPOSIT_RATE = 0.30
 MAX_DISCOUNT_PCT = 0.20
@@ -399,14 +402,12 @@ with tab_policy:
     st.subheader("Thông tin chính sách giá")
     st.table(pd.DataFrame([{"Mức tuổi": l, "% Giá": f"{f:.0%}"} for _, _, l, f in AGE_GROUPS]))
 
-n_state.sb_messages.append({"role": "model", "content": response.text})
-                st.rerun()
-        except Exception as e:
-            st.error(f"Lỗi: {e}")
-# ============================== CHATBOT AI SĦIĦ BIL-KEY TIEGĦEK ==============================
+# TAB 5: TRỢ LÝ AI (HƯỚNG DẪN TRONG TAB TRANG CHÍNH)
+with tab_chatbot:
+    st.subheader("🤖 Trợ lý Trí Tuệ Nhân Tạo Smart Tour")
+    st.info("💡 Bạn có thể trò chuyện trực tiếp với AI tư vấn du lịch 24/7 bằng cách nhấn vào **Quả cầu tím 🔮** ở góc dưới bên phải màn hình!")
 
-# L-API Key tiegħek meħuda direttament
-API_KEY = "AQ.Ab8RN6IM461mnzeOQSAixx99OmjFuxYko81rzl1en1224_grmQ"
+# ============================== GIAO DIỆN QUẢ CẦU AI FLOATING 3D ==============================
 
 st.markdown("""
     <style>
@@ -457,8 +458,6 @@ with st.popover("ai"):
 
     try:
         import google.genai as genai
-        
-        # Inizjalizza l-klijent bl-API Key tiegħek
         client = genai.Client(api_key=API_KEY)
 
         if "ai_chat_history" not in st.session_state:
@@ -475,7 +474,7 @@ with st.popover("ai"):
         if prompt := st.chat_input("Hỏi SmartAI..."):
             st.session_state.ai_chat_history.append({"role": "user", "content": prompt})
             
-            system_context = f"Bạn là trợ lý tư vấn du lịch của Smart Tour. Danh sách tour: {list(TOURS.values()) if 'TOURS' in globals() else 'Thông tin tour du lịch'}."
+            system_context = f"Bạn là trợ lý tư vấn du lịch của Smart Tour. Danh sách tour hiện có: {list(TOURS.values())}."
             response = client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=f"{system_context}\n\nKhách hàng hỏi: {prompt}"
