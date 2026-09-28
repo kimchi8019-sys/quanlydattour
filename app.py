@@ -399,147 +399,23 @@ with tab_policy:
     st.subheader("Thông tin chính sách giá")
     st.table(pd.DataFrame([{"Mức tuổi": l, "% Giá": f"{f:.0%}"} for _, _, l, f in AGE_GROUPS]))
 
-# ============================== NÚT CHATBOT AI NỔI GÓC MÀN HÌNH ==============================
-# CSS để biến khung chat thành Cửa sổ Nổi (Floating Widget) ở góc dưới bên phải
+n_state.sb_messages.append({"role": "model", "content": response.text})
+                st.rerun()
+        except Exception as e:
+            st.error(f"Lỗi: {e}")
+# ============================== CHATBOT AI SĦIĦ BIL-KEY TIEGĦEK ==============================
+
+# L-API Key tiegħek meħuda direttament
+API_KEY = "AQ.Ab8RN6IM461mnzeOQSAixx99OmjFuxYko81rzl1en1224_grmQ"
+
 st.markdown("""
     <style>
-    /* Định vị container chatbot ở góc dưới bên phải */
-    div[data-testid="stPopover"] {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 999999;
-    }
-    div[data-testid="stPopover"] > button {
-        background-color: #0084ff !important;
-        color: white !important;
-        border-radius: 50px !important;
-        padding: 12px 24px !important;
-        box-shadow: 0px 4px 12px rgba(0,0,0,0.3) !important;
-        font-weight: bold !important;
-        border: none !important;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# ============================== CHATBOT AI BONG BÓNG TRÒN ==============================
-# API Key Gemini của bạn đã được tích hợp sẵn
-api_key = "AQ.Ab8RN6IM461mnzeOQSAixx99OmjFuxYko81rzl1en1224_grmQ"
-# CSS biến nút Popover thành Nút Tròn Float Widget cố định góc phải
-st.markdown("""
-    <style>
-    /* Vị trí cố định góc dưới bên phải */
-    div[data-testid="stPopover"] {
-        position: fixed;
-        bottom: 25px;
-        right: 25px;
-        z-index: 999999;
-    }
-    /* Biến nút thành hình tròn 56x56px */
-    div[data-testid="stPopover"] > button {
-        background-color: #0084ff !important;
-        color: white !important;
-        width: 58px !important;
-        height: 58px !important;
-        border-radius: 50% !important;
-        padding: 0px !important;
-        margin: 0px !important;
-        border: none !important;
-        box-shadow: 0px 4px 15px rgba(0,0,0,0.3) !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        font-size: 26px !important;
-    }
-    div[data-testid="stPopover"] > button:hover {
-        background-color: #006bce !important;
-        transform: scale(1.08);
-        transition: all 0.2s ease-in-out;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# ============================== CHATBOT AI QUẢ CẦU 3D NỔI (TPBANK STYLE) ==============================
-st.markdown("""
-    <style>
-    /* Ghim widget ở góc dưới bên phải màn hình */
-    div[data-testid="stPopover"] {
-        position: fixed;
-        bottom: 25px;
-        right: 25px;
-        z-index: 999999;
-    }
-
-    /* Thiết kế nút bấm thành Quả cầu AI 3D phát sáng */
-    div[data-testid="stPopover"] > button {
-        width: 65px !important;
-        height: 65px !important;
-        border-radius: 50% !important;
-        padding: 0 !important;
-        border: none !important;
-        /* Phối màu Gradient tạo khối cầu 3D */
-        background: radial-gradient(circle at 35% 35%, #e9d5ff, #a855f7 40%, #6366f1 70%, #1e1b4b 100%) !important;
-        box-shadow: 0 8px 25px rgba(168, 85, 247, 0.5), inset -3px -3px 8px rgba(0,0,0,0.4) !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        cursor: pointer !important;
-        transition: transform 0.3s ease, box-shadow 0.3s ease !important;
-        position: relative !important;
-    }
-
-    /* Hiệu ứng Phóng to & Bật sáng khi di chuột vào Quả cầu */
-    div[data-testid="stPopover"] > button:hover {
-        transform: scale(1.1) rotate(5deg);
-        box-shadow: 0 12px 30px rgba(168, 85, 247, 0.7), inset -2px -2px 6px rgba(0,0,0,0.3) !important;
-    }
-
-    /* Tạo bong bóng thoại nhỏ nhô ra phía trên quả cầu */
-    div[data-testid="stPopover"] > button::before {
-        content: "SmartAI sẵn sàng! ✨";
-        position: absolute;
-        top: -38px;
-        right: 0;
-        white-space: nowrap;
-        background: #ffffff;
-        color: #581c87;
-        font-weight: 600;
-        font-size: 12px;
-        padding: 4px 10px;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        border: 1px solid #e9d5ff;
-        pointer-events: none;
-    }
-
-    /* Tam giác nhỏ chỉ xuống quả cầu từ bong bóng thoại */
-    div[data-testid="stPopover"] > button::after {
-        content: "";
-        position: absolute;
-        top: -10px;
-        right: 22px;
-        border-width: 6px 6px 0;
-        border-style: solid;
-        border-color: #ffffff transparent;
-        display: block;
-        width: 0;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# ============================== NÚT CHATBOT QUẢ CẦU AI TRÒN ==============================
-api_key = "AQ.Ab8RN6IM461mnzeOQSAixx99OmjFuxYko81rzl1en1224_grmQ"
-st.markdown("""
-    <style>
-    /* 1. Định vị container Popover ở góc dưới bên phải */
     div[data-testid="stPopover"] {
         position: fixed !important;
         bottom: 25px !important;
         right: 25px !important;
         z-index: 999999 !important;
     }
-
-    /* 2. Ép nút popover thành hình tròn 60x60px tuyệt đối */
     div[data-testid="stPopover"] > button {
         width: 60px !important;
         height: 60px !important;
@@ -550,30 +426,22 @@ st.markdown("""
         border-radius: 50% !important;
         padding: 0 !important;
         margin: 0 !important;
-        border: none !important;
+        border: 2px solid rgba(255, 255, 255, 0.8) !important;
         background: radial-gradient(circle at 35% 35%, #e9d5ff, #a855f7 40%, #6366f1 70%, #1e1b4b 100%) !important;
-        box-shadow: 0 6px 20px rgba(168, 85, 247, 0.5) !important;
+        box-shadow: 0 8px 25px rgba(168, 85, 247, 0.6) !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
         cursor: pointer !important;
-        transition: transform 0.2s ease, box-shadow 0.2s ease !important;
-        overflow: hidden !important;
+        transition: transform 0.3s ease !important;
     }
-
-    /* 3. Hiệu ứng phóng to khi rê chuột */
     div[data-testid="stPopover"] > button:hover {
-        transform: scale(1.1);
-        box-shadow: 0 10px 25px rgba(168, 85, 247, 0.7) !important;
+        transform: scale(1.12) rotate(6deg) !important;
     }
-
-    /* 4. Ẩn toàn bộ văn bản thừa dư thừa do Streamlit render ra */
     div[data-testid="stPopover"] > button p,
     div[data-testid="stPopover"] > button span {
         display: none !important;
     }
-
-    /* 5. Chèn icon quả cầu 🔮 trực tiếp vào nút bằng CSS pseudo-element */
     div[data-testid="stPopover"] > button::after {
         content: "🔮";
         font-size: 26px;
@@ -583,101 +451,38 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ============================== CHATBOT AI QUẢ CẦU NỔI GÓC DƯỚI ==============================
-import streamlit.components.v1 as components
+with st.popover("ai"):
+    st.subheader("🤖 Trợ lý AI Smart Tour")
+    st.caption("Tư vấn lịch trình & hỗ trợ chọn tour 24/7")
 
-# 1. CSS & HTML dựng Quả cầu AI floating chuẩn 100%
-floating_chat_html = """
-<style>
-    /* Quả cầu AI floating góc dưới bên phải */
-    .ai-sphere-btn {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        background: radial-gradient(circle at 35% 35%, #e9d5ff, #a855f7 40%, #6366f1 70%, #1e1b4b 100%);
-        box-shadow: 0 8px 25px rgba(168, 85, 247, 0.6);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 28px;
-        z-index: 999999;
-        transition: all 0.3s ease;
-        border: 2px solid rgba(255, 255, 255, 0.8);
-    }
-    .ai-sphere-btn:hover {
-        transform: scale(1.12) rotate(8deg);
-        box-shadow: 0 12px 30px rgba(168, 85, 247, 0.8);
-    }
-    /* Nhãn tooltip nhỏ nhô ra phía trên */
-    .ai-tooltip {
-        position: fixed;
-        bottom: 88px;
-        right: 20px;
-        background: #ffffff;
-        color: #581c87;
-        font-family: sans-serif;
-        font-size: 12px;
-        font-weight: bold;
-        padding: 5px 12px;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-        border: 1px solid #e9d5ff;
-        z-index: 999999;
-        pointer-events: none;
-    }
-    .ai-tooltip::after {
-        content: "";
-        position: absolute;
-        bottom: -6px;
-        right: 22px;
-        border-width: 6px 6px 0;
-        border-style: solid;
-        border-color: #ffffff transparent;
-    }
-</style>
+    try:
+        import google.genai as genai
+        
+        # Inizjalizza l-klijent bl-API Key tiegħek
+        client = genai.Client(api_key=API_KEY)
 
-<div class="ai-tooltip">SmartAI sẵn sàng! ✨</div>
-<div class="ai-sphere-btn" onclick="window.parent.postMessage({type: 'OPEN_AI_CHAT'}, '*')">
-    🔮
-</div>
-"""
+        if "ai_chat_history" not in st.session_state:
+            st.session_state.ai_chat_history = [
+                {"role": "model", "content": "Xin chào! Tôi là Trợ lý AI Smart Tour 🌴. Bạn cần tư vấn tour gì hôm nay?"}
+            ]
 
-# Render widget trực tiếp
-components.html(floating_chat_html, height=0)
+        chat_container = st.container(height=340)
+        with chat_container:
+            for msg in st.session_state.ai_chat_history:
+                with st.chat_message(msg["role"]):
+                    st.markdown(msg["content"])
 
-# 2. Khung chat hiển thị khi mở Sidebar/Tab
-st.sidebar.markdown("---")
-with st.sidebar.expander("💬 **Trợ lý AI Smart Tour**", expanded=False):
-    api_key = st.text_input("Gemini API Key:", type="password", key="sidebar_key")
-    if not api_key:
-        st.info("💡 Vui lòng nhập Gemini API Key.")
-    else:
-        try:
-            import google.genai as genai
-            client = genai.Client(api_key=api_key)
+        if prompt := st.chat_input("Hỏi SmartAI..."):
+            st.session_state.ai_chat_history.append({"role": "user", "content": prompt})
+            
+            system_context = f"Bạn là trợ lý tư vấn du lịch của Smart Tour. Danh sách tour: {list(TOURS.values()) if 'TOURS' in globals() else 'Thông tin tour du lịch'}."
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=f"{system_context}\n\nKhách hàng hỏi: {prompt}"
+            )
+            
+            st.session_state.ai_chat_history.append({"role": "model", "content": response.text})
+            st.rerun()
 
-            if "sb_messages" not in st.session_state:
-                st.session_state.sb_messages = [
-                    {"role": "model", "content": "Xin chào! Tôi là Trợ lý AI Smart Tour. Bạn cần tư vấn tour nào?"}
-                ]
-
-            chat_box = st.container(height=300)
-            with chat_box:
-                for msg in st.session_state.sb_messages:
-                    with st.chat_message(msg["role"]):
-                        st.markdown(msg["content"])
-
-            if prompt := st.chat_input("Hỏi AI...", key="sb_prompt"):
-                st.session_state.sb_messages.append({"role": "user", "content": prompt})
-                response = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=f"Bạn là trợ lý du lịch Smart Tour. Danh sách tour: {list(TOURS.values())}.\n\nKhách hỏi: {prompt}"
-                )
-                st.session_state.sb_messages.append({"role": "model", "content": response.text})
-                st.rerun()
-        except Exception as e:
-            st.error(f"Lỗi: {e}")
+    except Exception as e:
+        st.error(f"Lỗi kết nối AI: {e}")
