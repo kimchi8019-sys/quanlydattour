@@ -174,7 +174,8 @@ def df_query(sql, params=()):
 # ============================================================
 def init_database():
     conn = db_connect()
-    cur = conn.cursor()
+    # Dùng dictionary cursor vì bên dưới đọc kết quả bằng tên cột, ví dụ row["n"].
+    cur = conn.cursor(dictionary=True)
 
     tables = [
         """
@@ -982,3 +983,4 @@ else:
             ORDER BY revenue DESC
         """)
         st.dataframe(by_tour,use_container_width=True,hide_index=True)
+
