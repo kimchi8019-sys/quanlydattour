@@ -148,14 +148,16 @@ def hotel_night_multiplier(d: date):
         m *= 1 + WEEKEND_HOTEL_SURCHARGE
     return m, s, weekend
 
-# ----------------------------------------------------------------------------
-# DATABASE OPERATORS (MySQL Aiven)
-# ----------------------------------------------------------------------------
-# Tự động xóa bảng cũ bị sai cấu trúc và tạo lại bảng mới chuẩn
+# --- DATABASE DDL ĐÃ SỬA LỖI TẮT KHÓA NGOẠI KHI XÓA BẢNG ---
 DDL = [
+    # 1. Tắt kiểm tra khóa ngoại để xóa được bảng cũ bị lỗi
+    "SET FOREIGN_KEY_CHECKS = 0",
     "DROP TABLE IF EXISTS booking_lines",
     "DROP TABLE IF EXISTS booking_guests",
     "DROP TABLE IF EXISTS bookings",
+    "SET FOREIGN_KEY_CHECKS = 1",
+    
+    # 2. Tạo lại các bảng mới chuẩn cấu trúc
     """CREATE TABLE bookings (
         code VARCHAR(20) PRIMARY KEY,
         created_at DATETIME NOT NULL,
@@ -182,6 +184,7 @@ DDL = [
         refund_amount DECIMAL(14,2) NULL,
         INDEX idx_phone (phone), INDEX idx_email (email), INDEX idx_depart (depart_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
+    
     """CREATE TABLE booking_guests (
         id INT AUTO_INCREMENT PRIMARY KEY,
         booking_code VARCHAR(20) NOT NULL,
@@ -190,6 +193,7 @@ DDL = [
         age_group VARCHAR(60),
         FOREIGN KEY (booking_code) REFERENCES bookings(code) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
+    
     """CREATE TABLE booking_lines (
         id INT AUTO_INCREMENT PRIMARY KEY,
         booking_code VARCHAR(20) NOT NULL,
