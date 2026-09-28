@@ -399,34 +399,68 @@ with tab_policy:
     st.subheader("Thông tin chính sách giá")
     st.table(pd.DataFrame([{"Mức tuổi": l, "% Giá": f"{f:.0%}"} for _, _, l, f in AGE_GROUPS]))
 
-# TAB 5: CHATBOT AI
-with tab_chatbot:
-    st.subheader("🤖 Trợ lý AI Smart Tour")
-    api_key = st.text_input("Nhập Gemini API Key:", type="password")
+# ============================== NÚT CHATBOT AI NỔI GÓC MÀN HÌNH ==============================
+# CSS để biến khung chat thành Cửa sổ Nổi (Floating Widget) ở góc dưới bên phải
+st.markdown("""
+    <style>
+    /* Định vị container chatbot ở góc dưới bên phải */
+    div[data-testid="stPopover"] {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 999999;
+    }
+    div[data-testid="stPopover"] > button {
+        background-color: #0084ff !important;
+        color: white !important;
+        border-radius: 50px !important;
+        padding: 12px 24px !important;
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.3) !important;
+        font-weight: bold !important;
+        border: none !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-    if api_key:
+# Tạo Nút Bong Bóng Chat Nổi (Pop-over)
+with st.popover("💬 Trợ lý AI Smart Tour"):
+    st.subheader("🤖 Tư vấn du lịch 24/7")
+    st.caption("Giải đáp lịch trình, thời tiết & gợi ý tour")
+
+    # Nhập API Key
+    api_key = st.text_input("Gemini API Key:", type="password", key="popover_api_key")
+
+    if not api_key:
+        st.info("💡 Bổ sung Gemini API Key để trò chuyện với AI.")
+    else:
         try:
             import google.genai as genai
             client = genai.Client(api_key=api_key)
 
-            if "messages" not in st.session_state:
-                st.session_state.messages = [{"role": "model", "content": "Xin chào! Tôi có thể giúp gì cho chuyến đi của bạn?"}]
+            if "popover_messages" not in st.session_state:
+                st.session_state.popover_messages = [
+                    {"role": "model", "content": "Xin chào! Bạn cần tư vấn tour gì hôm nay?"}
+                ]
 
-            for msg in st.session_state.messages:
-                with st.chat_message(msg["role"]):
-                    st.markdown(msg["content"])
+            # Khung hiển thị tin nhắn có chiều cao cố định
+            chat_container = st.container(height=300)
+            with chat_container:
+                for msg in st.session_state.popover_messages:
+                    with st.chat_message(msg["role"]):
+                        st.markdown(msg["content"])
 
+            # Ô nhập liệu chat
             if prompt := st.chat_input("Hỏi AI..."):
-                st.session_state.messages.append({"role": "user", "content": prompt})
-                with st.chat_message("user"):
-                    st.markdown(prompt)
+                st.session_state.popover_messages.append({"role": "user", "content": prompt})
+                
+                system_context = f"Bạn là trợ lý tư vấn du lịch của Smart Tour. Danh sách tour: {list(TOURS.values())}."
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=f"{system_context}\n\nCâu hỏi: {prompt}"
+                )
+                
+                st.session_state.popover_messages.append({"role": "model", "content": response.text})
+                st.rerun()
 
-                with st.chat_message("assistant"):
-                    response = client.models.generate_content(
-                        model="gemini-2.5-flash",
-                        contents=f"Bạn là trợ lý tour. Dữ liệu tour: {list(TOURS.values())}\n\nCâu hỏi: {prompt}"
-                    )
-                    st.markdown(response.text)
-                    st.session_state.messages.append({"role": "model", "content": response.text})
         except Exception as e:
-            st.error(f"Lỗi AI: {e}")
+            st.error(f"Lỗi: {e}")
