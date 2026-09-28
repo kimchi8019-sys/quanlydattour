@@ -24,7 +24,7 @@ DB_CONFIG = {
 }
 
 # GEMINI API KEY FIX CỐ ĐỊNH
-API_KEY = st.secrets.get("GEMINI_API_KEY", "")"
+API_KEY = st.secrets.get("GEMINI_API_KEY", "")
 
 VAT_RATE = 0.08
 DEPOSIT_RATE = 0.30
