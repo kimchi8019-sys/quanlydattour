@@ -7,7 +7,7 @@ import streamlit as st
 import mysql.connector
 
 st.set_page_config(page_title="SMART TOUR", page_icon="🌴", layout="wide", initial_sidebar_state="expanded")
-APP_VERSION = "SMART TOUR v2.1 – MySQL no-FK schema"
+APP_VERSION = "SMART TOUR v2.2 – MySQL no-FK schema"
 
 # ============================================================
 # SMART TOUR - CUSTOMER + ADMIN + AI CHATBOT + MYSQL AIVEN
@@ -103,7 +103,7 @@ def query_df(sql, params=None):
 def init_database():
     try:
         conn = new_connection()
-        cur = conn.cursor()
+        cur = conn.cursor(dictionary=True)
         tables = [
             """CREATE TABLE IF NOT EXISTS smarttour_users (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -325,8 +325,8 @@ except Exception as e:
 if not ok:
     st.error("❌ SMART TOUR chưa khởi tạo được cơ sở dữ liệu MySQL Aiven.")
     st.code(msg)
-    st.warning("Bản này dùng 6 bảng riêng có tiền tố smarttour_ và KHÔNG dùng FOREIGN KEY, để tránh lỗi MySQL 1215 từ schema cũ.")
-    st.info("Nếu vẫn thấy lỗi 1215 sau khi deploy bản này, hãy kiểm tra GitHub đã thay đúng file app.py và bấm Reboot app trên Streamlit Cloud.")
+    st.warning("Bản này dùng 6 bảng riêng có tiền tố smarttour_, KHÔNG dùng FOREIGN KEY và đã sửa lỗi cursor dictionary gây ra: tuple indices must be integers or slices, not str.")
+    st.info("Nếu vẫn lỗi, hãy gửi nguyên dòng lỗi mới. Bản v2.2 đã sửa lỗi đọc kết quả SELECT COUNT(*) trong bước khởi tạo database.")
     st.stop()
 
 # ============================================================
