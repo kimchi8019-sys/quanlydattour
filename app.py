@@ -526,6 +526,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================== NÚT CHATBOT QUẢ CẦU AI TRÒN ==============================
+api_key = "AQ.Ab8RN6IM461mnzeOQSAixx99OmjFuxYko81rzl1en1224_grmQ"
 st.markdown("""
     <style>
     /* 1. Định vị container Popover ở góc dưới bên phải */
