@@ -6,8 +6,8 @@ from datetime import date, datetime, timedelta
 
 import mysql.connector
 import pandas as pd
-from google import genai
 import streamlit as st
+import google.generativeai as genai
 
 # --- CẤU HÌNH TRANG ---
 st.set_page_config(page_title="Smart Tour", page_icon="🌴", layout="wide")
@@ -23,11 +23,14 @@ DB_CONFIG = {
     "connection_timeout": 15,
     "charset": "utf8mb4",
 }
-response = client.models.generate_content(
-    model="gemini-2.5-flash",
-    contents=user_prompt,  # biến chứa câu hỏi của người dùng
-)
-bot_reply = response.text
+
+# --- CẤU HÌNH GEMINI AI ---
+API_KEY = st.secrets.get("GEMINI_API_KEY", "")
+if API_KEY:
+    try:
+        genai.configure(api_key=API_KEY)
+    except Exception as e:
+        pass
 
 VAT_RATE = 0.08
 DEPOSIT_RATE = 0.30
@@ -35,494 +38,271 @@ MAX_DISCOUNT_PCT = 0.20
 
 TOURS = {
     "T01": {
-        "name": "Đà Nẵng - Hội An - Bà Nà Hills", "days": 4, "base": 4_990_000,
-        "transport": "Máy bay khứ hồi", "room_base": 600_000,
-        "highlights": "Bà Nà Hills, Cầu Vàng, phố cổ Hội An, biển Mỹ Khê",
-        "hotels": [("Han Riverside", 3), ("Novotel Danang", 4), ("Furama Resort", 5)],
-        "times": ["05:30", "08:00", "13:30"],
+        "name": "Khám Phá Hạ Long Rồng Việt",
+        "duration": "3 ngày 2 đêm",
+        "price": 3500000,
+        "desc": "Du thuyền 5 sao, thăm hang Sửng Sốt, đảo Ti Tốp, chèo thuyền Kayak.",
+        "image": "https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=600&q=80"
     },
     "T02": {
-        "name": "Phú Quốc - Đảo Ngọc", "days": 3, "base": 5_490_000,
-        "transport": "Máy bay khứ hồi", "room_base": 750_000,
-        "highlights": "Vinpearl Safari, cáp treo Hòn Thơm, lặn ngắm san hô",
-        "hotels": [("Sea Star", 3), ("Sol by Melia", 4), ("JW Marriott", 5)],
-        "times": ["06:00", "09:30", "14:00"],
+        "name": "Đà Nẵng - Hội An - Bà Nà Hills",
+        "duration": "4 ngày 3 đêm",
+        "price": 4800000,
+        "desc": "Check-in Cầu Vàng, phố cổ Hội An đêm đèn lồng, tắm biển Mỹ Khê.",
+        "image": "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=600&q=80"
     },
     "T03": {
-        "name": "Sa Pa - Fansipan - Bản Cát Cát", "days": 3, "base": 3_890_000,
-        "transport": "Xe limousine giường nằm", "room_base": 500_000,
-        "highlights": "Fansipan, bản Cát Cát, thác Bạc, chợ tình",
-        "hotels": [("Sapa Central", 3), ("Pao's Sapa Leisure", 4), ("Hotel de la Coupole", 5)],
-        "times": ["20:00", "22:00"],
+        "name": "Phú Quốc Thiên Đường Biển Ngọc",
+        "duration": "3 ngày 2 đêm",
+        "price": 5200000,
+        "desc": "Cáp treo Hòn Thơm, VinWonders, ngắm hoàng hôn Sanato, lặn ngắm san hô.",
+        "image": "https://images.unsplash.com/photo-1540202404-a2f29016b523?auto=format&fit=crop&w=600&q=80"
     },
     "T04": {
-        "name": "Hạ Long - Yên Tử", "days": 3, "base": 3_590_000,
-        "transport": "Xe du lịch đời mới", "room_base": 550_000,
-        "highlights": "Du thuyền vịnh Hạ Long, hang Sửng Sốt, chùa Yên Tử",
-        "hotels": [("Hạ Long Bay Hotel", 3), ("Wyndham Legend", 4), ("Vinpearl Resort", 5)],
-        "times": ["06:30", "08:00"],
-    },
-    "T05": {
-        "name": "Đà Lạt - Thành phố ngàn hoa", "days": 3, "base": 3_290_000,
-        "transport": "Xe limousine", "room_base": 450_000,
-        "highlights": "Hồ Xuân Hương, đồi chè Cầu Đất, Langbiang, chợ đêm",
-        "hotels": [("Dalat Palace Lite", 3), ("Ana Mandara Villas", 4), ("Dalat Palace Heritage", 5)],
-        "times": ["05:30", "07:30", "13:00"],
-    },
-}
-
-STAR_MULT = {3: 1.0, 4: 1.7, 5: 3.0}
-ROOM_TYPES = {
-    "Standard": {"mult": 1.0, "cap": 2},
-    "Deluxe": {"mult": 1.4, "cap": 3},
-    "Suite": {"mult": 2.3, "cap": 4},
-}
-
-AGE_GROUPS = [
-    (0, 1, "Em bé (dưới 2 tuổi)", 0.10),
-    (2, 4, "Trẻ nhỏ (2-4 tuổi)", 0.50),
-    (5, 11, "Trẻ em (5-11 tuổi)", 0.75),
-    (12, 59, "Người lớn (12-59 tuổi)", 1.00),
-    (60, 120, "Cao tuổi (60+)", 0.90),
-]
-
-TOUR_SEASON = {"peak": 1.25, "high": 1.10, "normal": 1.00, "low": 0.92}
-HOTEL_SEASON = {"peak": 1.60, "high": 1.20, "normal": 1.00, "low": 0.85}
-
-EXTRAS = {
-    "Bảo hiểm du lịch": {"price": 60_000, "unit": "người"},
-    "Đưa đón sân bay/ga 2 chiều": {"price": 400_000, "unit": "xe (4 khách)"},
-    "Hướng dẫn viên riêng": {"price": 1_200_000, "unit": "ngày"},
-    "Gói ăn uống nâng cấp": {"price": 250_000, "unit": "người/ngày"},
-    "Vé tham quan VIP (fast-track)": {"price": 300_000, "unit": "người"},
-}
-
-HOLIDAYS = [
-    (date(2026, 12, 24), date(2027, 1, 3)),
-    (date(2027, 2, 3), date(2027, 2, 12)),
-    (date(2027, 4, 28), date(2027, 5, 3)),
-]
-
-def vnd(x: float) -> str:
-    return f"{x:,.0f}".replace(",", ".") + " ₫"
-
-def season_of(d: date) -> str:
-    if any(a <= d <= b for a, b in HOLIDAYS):
-        return "peak"
-    if d.month in (6, 7, 8):
-        return "high"
-    if (d.month == 9 and d.day >= 5) or d.month == 10 or (d.month == 11 and d.day <= 15):
-        return "low"
-    return "normal"
-
-def age_group(age: int):
-    for lo, hi, label, factor in AGE_GROUPS:
-        if lo <= age <= hi:
-            return label, factor
-    return AGE_GROUPS[-1][2], AGE_GROUPS[-1][3]
-
-def room_price(tour: dict, stars: int, room_type: str) -> float:
-    return round(tour["room_base"] * STAR_MULT[stars] * ROOM_TYPES[room_type]["mult"], -3)
-
-DDL = [
-    """CREATE TABLE IF NOT EXISTS bookings (
-        code VARCHAR(20) PRIMARY KEY,
-        created_at DATETIME NOT NULL,
-        customer VARCHAR(120) NOT NULL,
-        phone VARCHAR(20) NOT NULL,
-        email VARCHAR(120) NOT NULL,
-        tour_id VARCHAR(10) NOT NULL,
-        tour_name VARCHAR(200) NOT NULL,
-        depart_at DATETIME NOT NULL,
-        return_at DATETIME NOT NULL,
-        n_guests INT NOT NULL,
-        hotel VARCHAR(200),
-        rooms VARCHAR(200),
-        subtotal DECIMAL(14,2) DEFAULT 0,
-        discount DECIMAL(14,2) DEFAULT 0,
-        vat DECIMAL(14,2) DEFAULT 0,
-        total DECIMAL(14,2) NOT NULL,
-        deposit DECIMAL(14,2) NOT NULL,
-        payment VARCHAR(60),
-        note TEXT,
-        status VARCHAR(40) NOT NULL DEFAULT 'Chờ thanh toán cọc'
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
-    """CREATE TABLE IF NOT EXISTS booking_guests (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        booking_code VARCHAR(20) NOT NULL,
-        guest_no INT NOT NULL,
-        age INT NOT NULL,
-        age_group VARCHAR(60)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
-    """CREATE TABLE IF NOT EXISTS booking_lines (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        booking_code VARCHAR(20) NOT NULL,
-        category VARCHAR(40),
-        detail VARCHAR(300),
-        amount DECIMAL(14,2) NOT NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
-]
-
-def get_conn():
-    return mysql.connector.connect(**DB_CONFIG)
-
-def init_db():
-    try:
-        base_cfg = DB_CONFIG.copy()
-        db_name = base_cfg.pop("database")
-        conn = mysql.connector.connect(**base_cfg)
-        cur = conn.cursor()
-        cur.execute(f"CREATE DATABASE IF NOT EXISTS {db_name} CHARACTER SET utf8mb4")
-        cur.close()
-        conn.close()
-
-        conn = get_conn()
-        cur = conn.cursor()
-        for q in DDL:
-            cur.execute(q)
-        conn.commit()
-        cur.close()
-        conn.close()
-        return None
-    except Exception as e:
-        return str(e)
-
-def insert_booking(b, tour_id, quote, ages):
-    conn = get_conn()
-    try:
-        cur = conn.cursor()
-        cur.execute(
-            """INSERT INTO bookings (code, created_at, customer, phone, email, tour_id, tour_name,
-               depart_at, return_at, n_guests, hotel, rooms, subtotal, discount, vat, total, deposit, payment, note, status)
-               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-            (
-                b["code"], datetime.now(), b["customer"], b["phone"], b["email"], tour_id, b["tour"],
-                b["depart"], b["return"], b["n_guests"], b["hotel"], b["rooms"], quote["subtotal"],
-                quote["discount"], quote["vat"], quote["total"], quote["deposit"], b["payment"],
-                b["note"], b["status"]
-            )
-        )
-        cur.executemany(
-            "INSERT INTO booking_guests (booking_code, guest_no, age, age_group) VALUES (%s,%s,%s,%s)",
-            [(b["code"], i + 1, int(a), age_group(int(a))[0]) for i, a in enumerate(ages)]
-        )
-        cur.executemany(
-            "INSERT INTO booking_lines (booking_code, category, detail, amount) VALUES (%s,%s,%s,%s)",
-            [(b["code"], ln["Hạng mục"], ln["Chi tiết"], float(ln["Thành tiền"])) for ln in quote["lines"]]
-        )
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
-
-def fetch_bookings(keyword="", limit=50):
-    conn = get_conn()
-    try:
-        cur = conn.cursor(dictionary=True)
-        if keyword:
-            cur.execute(
-                "SELECT * FROM bookings WHERE code=%s OR phone=%s OR email=%s ORDER BY created_at DESC LIMIT %s",
-                (keyword, keyword, keyword, limit)
-            )
-        else:
-            cur.execute("SELECT * FROM bookings ORDER BY created_at DESC LIMIT %s", (limit,))
-        return cur.fetchall()
-    finally:
-        conn.close()
-
-def calc_quote(tour, depart, ages, hotel, rooms, extras, promo_code):
-    lines = []
-    n_guests = len(ages)
-    season = season_of(depart)
-    t_mult = TOUR_SEASON[season]
-
-    tour_fare = 0.0
-    for label, cnt in Counter(age_group(a)[0] for a in ages).items():
-        factor = next(f for _, _, l, f in AGE_GROUPS if l == label)
-        unit = round(tour["base"] * t_mult * factor, -3)
-        tour_fare += unit * cnt
-        lines.append({"Hạng mục": "Tour", "Chi tiết": f"{label} × {cnt} ({vnd(unit)}/người)", "Thành tiền": unit * cnt})
-
-    hotel_total = 0.0
-    if hotel and sum(rooms.values()) > 0:
-        h_name, stars = hotel
-        nights = tour["days"] - 1
-        for rt, q in rooms.items():
-            if q:
-                p = round(room_price(tour, stars, rt) * nights, -3)
-                hotel_total += p * q
-                lines.append({"Hạng mục": "Khách sạn", "Chi tiết": f"{h_name} {stars}★ - {q} phòng {rt} × {nights} đêm", "Thành tiền": p * q})
-
-    extras_total = 0.0
-    for name in extras:
-        e = EXTRAS[name]
-        qty = n_guests if name == "Bảo hiểm du lịch" else 1
-        amount = e["price"] * qty
-        extras_total += amount
-        lines.append({"Hạng mục": "Dịch vụ", "Chi tiết": f"{name} × {qty} {e['unit']}", "Thành tiền": amount})
-
-    discount = 0.0
-    subtotal = tour_fare + hotel_total + extras_total
-    vat = subtotal * VAT_RATE
-    total = subtotal + vat
-
-    return {
-        "lines": lines, "subtotal": subtotal, "discount": discount,
-        "vat": vat, "total": total, "deposit": total * DEPOSIT_RATE
+        "name": "Sapa Sương Mù - Đỉnh Fansipan",
+        "duration": "2 ngày 1 đêm",
+        "price": 2900000,
+        "desc": "Săn mây Fansipan, bản Cát Cát, thưởng thức lẩu thắng cố và đồ nướng Sapa.",
+        "image": "https://images.unsplash.com/photo-1508873696983-2df515122519?auto=format&fit=crop&w=600&q=80"
     }
+}
 
-# ----------------------------------------------------------------------------
-# THIẾT LẬP CƠ SỞ DỮ LIỆU & THANH BÊN (SIDEBAR)
-# ----------------------------------------------------------------------------
-db_error = init_db()
+# --- KẾT NỐI DATABASE ---
+def get_db_connection():
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        return conn
+    except Exception as e:
+        st.error(f"Lỗi kết nối CSDL: {e}")
+        return None
 
-# --- CSS TÙY CHỈNH CHATBOT CHUYÊN NGHIỆP ---
+# --- KHỞI TẠO BẢNG CSDL TỰ ĐỘNG ---
+def init_db():
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS bookings (
+                id VARCHAR(50) PRIMARY KEY,
+                customer_name VARCHAR(100),
+                phone VARCHAR(20),
+                email VARCHAR(100),
+                tour_id VARCHAR(20),
+                tour_name VARCHAR(100),
+                departure_date DATE,
+                num_adults INT,
+                num_children INT,
+                total_price DOUBLE,
+                deposit_amount DOUBLE,
+                discount_amount DOUBLE,
+                status VARCHAR(20),
+                created_at DATETIME
+            )
+            """)
+            conn.commit()
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            st.error(f"Lỗi khởi tạo DB: {e}")
+
+init_db()
+
+# --- CSS TÙY CHỈNH GIAO DIỆN MODERN ---
 st.markdown("""
 <style>
-    .ai-card {
-        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    .main { background-color: #f8f9fa; }
+    .stButton>button {
+        background-color: #0066cc;
         color: white;
-        padding: 12px 15px;
+        border-radius: 8px;
+        border: none;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+    }
+    .stButton>button:hover { background-color: #004c99; color: white; }
+    .card {
+        background: white;
+        padding: 1.5rem;
         border-radius: 12px;
-        margin-bottom: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        margin-bottom: 1rem;
     }
-    .ai-title {
-        font-size: 15px;
-        font-weight: 700;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .ai-subtitle {
-        font-size: 11px;
-        opacity: 0.85;
-        margin-top: 2px;
-    }
-    .chat-bubble-bot {
-        background-color: #f0f2f5;
-        color: #1c1e21;
-        padding: 10px 12px;
-        border-radius: 15px 15px 15px 2px;
-        margin-bottom: 8px;
-        font-size: 13px;
-        line-height: 1.4;
-        border: 1px solid #e4e6eb;
-    }
-    .chat-bubble-user {
-        background-color: #0084ff;
+    .metric-card {
+        background: linear-gradient(135deg, #0066cc 0%, #004c99 100%);
         color: white;
-        padding: 10px 12px;
-        border-radius: 15px 15px 2px 15px;
-        margin-bottom: 8px;
-        font-size: 13px;
-        line-height: 1.4;
-        text-align: right;
-        margin-left: auto;
-        max-width: 85%;
+        padding: 1.2rem;
+        border-radius: 10px;
+        text-align: center;
     }
 </style>
 """, unsafe_allow_html=True)
 
+# --- SIDEBAR & CHATBOT AI ---
 with st.sidebar:
-    st.header("🗄️ Cơ sở dữ liệu")
-    if db_error:
-        st.error("Chưa kết nối được MySQL")
-    else:
-        st.success("Đã kết nối MySQL Aiven!")
-        
-    st.divider()
-
-    # ================= KHU VỰC CHATBOT AI SANG TRỌNG =================
-    st.markdown("""
-        <div class="ai-card">
-            <div class="ai-title">🤖 Trợ lý AI Smart Tour</div>
-            <div class="ai-subtitle">Tư vấn lịch trình & báo giá tự động 24/7</div>
-        </div>
-    """, unsafe_allow_html=True)
-
-    # Nút bấm làm mới hội thoại
-    col_ai1, col_ai2 = st.columns([3, 1])
-    with col_ai2:
-        if st.button("🗑️ Xóa", help="Làm mới cuộc trò chuyện"):
-            st.session_state.ai_chat_history = []
-            st.rerun()
-
-    # Kiểm tra thư viện AI
-    has_genai = False
-    sdk_type = None
-
-    try:
-        import google.generativeai as genai
-        has_genai = True
-        sdk_type = "legacy"
-    except ImportError:
-        try:
-            import google.genai as genai
-            has_genai = True
-            sdk_type = "new"
-        except ImportError:
-            has_genai = False
-
-    if not has_genai:
-        st.info("💡 Bạn cần thêm `google-generativeai` vào `requirements.txt` trên GitHub để bật AI.")
-    else:
-        try:
-            if sdk_type == "legacy":
-                genai.configure(api_key=API_KEY)
+    st.title("🌴 Smart Tour Admin")
+    st.markdown("---")
+    
+    st.subheader("🤖 Trợ Lý AI (Gemini)")
+    user_query = st.text_input("Hỏi AI tư vấn tour hoặc hỗ trợ:", key="ai_input")
+    if st.button("Gửi câu hỏi", key="btn_ai"):
+        if not user_query:
+            st.warning("Vui lòng nhập câu hỏi.")
+        elif not API_KEY:
+            st.error("Chưa cấu hình GEMINI_API_KEY trong Secrets!")
+        else:
+            try:
                 model = genai.GenerativeModel("gemini-1.5-flash")
-            else:
-                client = genai.Client(api_key=API_KEY)
-
-            if "ai_chat_history" not in st.session_state or not st.session_state.ai_chat_history:
-                st.session_state.ai_chat_history = [
-                    {"role": "model", "content": "Xin chào! Tôi là Trợ lý AI Smart Tour 🌴. Bạn cần tư vấn tour gì hôm nay?"}
-                ]
-
-            # Khung chat hiển thị dạng bong bóng tin nhắn tinh tế
-            chat_box = st.container(height=320)
-            with chat_box:
-                for msg in st.session_state.ai_chat_history:
-                    if msg["role"] == "model":
-                        st.markdown(f'<div class="chat-bubble-bot">🤖 {msg["content"]}</div>', unsafe_allow_html=True)
-                    else:
-                        st.markdown(f'<div class="chat-bubble-user">{msg["content"]}</div>', unsafe_allow_html=True)
-
-            # Ô nhập liệu nhắn tin
-            if user_prompt := st.chat_input("Nhập câu hỏi..."):
-                st.session_state.ai_chat_history.append({"role": "user", "content": user_prompt})
-                
-                tour_info = "\n".join([f"- {v['name']}: {v['days']} ngày, giá từ {v['base']:,}đ, gồm {v['highlights']}" for v in TOURS.values()])
-                system_context = f"Bạn là nhân viên tư vấn du lịch Smart Tour chuyên nghiệp, thân thiện. Danh sách tour đang có:\n{tour_info}\nTrả lời ngắn gọn, rõ ràng, tối đa 3-4 câu."
-
-                if sdk_type == "legacy":
-                    history_legacy = []
-                    for m in st.session_state.ai_chat_history[:-1]:
-                        history_legacy.append({"role": m["role"], "parts": [m["content"]]})
-                    chat = model.start_chat(history=history_legacy)
-                    resp = chat.send_message(f"{system_context}\n\nKhách hỏi: {user_prompt}")
-                    reply = resp.text
-                else:
-                    resp = client.models.generate_content(
-                        model="gemini-2.5-flash",
-                        contents=f"{system_context}\n\nKhách hỏi: {user_prompt}"
+                with st.spinner("AI đang trả lời..."):
+                    response = model.generate_content(
+                        f"Bạn là trợ lý tư vấn du lịch thông minh của Smart Tour. "
+                        f"Danh sách tour hiện có: {TOURS}. "
+                        f"Trả lời ngắn gọn, lịch sự, thuyết phục bằng Tiếng Việt cho câu hỏi: {user_query}"
                     )
-                    reply = resp.text
+                    st.success("Trả lời từ AI:")
+                    st.write(response.text)
+            except Exception as e:
+                st.error(f"Lỗi AI: {e}")
+                
+    st.markdown("---")
+    menu = st.radio("Điều hướng hệ thống", ["Danh Sách Tour", "Đặt Tour Mới", "Quản Lý Đơn Đặt Tour", "Thống Kê Doanh Thu"])
 
-                st.session_state.ai_chat_history.append({"role": "model", "content": reply})
-                st.rerun()
+# --- HEADER TRANG ---
+st.title("☀️ Hệ Thống Quản Lý Đặt Tour Du Lịch")
+st.caption("Giải pháp quản lý tour, booking và tích hợp AI thông minh")
+st.markdown("---")
 
-        except Exception as e:
-            st.error(f"Lỗi AI: {e}")
+# --- TAB 1: DANH SÁCH TOUR ---
+if menu == "Danh Sách Tour":
+    st.header("📋 Danh Sách Tour Du Lịch Nổi Bật")
+    cols = st.columns(2)
+    for idx, (t_id, tour) in enumerate(TOURS.items()):
+        with cols[idx % 2]:
+            st.markdown(f"""
+            <div class="card">
+                <img src="{tour['image']}" style="width:100%; height:200px; object-fit:cover; border-radius:8px;">
+                <h3 style="margin-top:10px; color:#0066cc;">{tour['name']} ({t_id})</h3>
+                <p><b>Thời gian:</b> {tour['duration']}</p>
+                <p><b>Giá tour:</b> <span style="color:#e63946; font-size:1.2rem; font-weight:bold;">{tour['price']:,} VNĐ</span>/khách</p>
+                <p>{tour['desc']}</p>
+            </div>
+            """, unsafe_allow_html=True)
 
-# ----------------------------------------------------------------------------
-# GIAO DIỆN CHÍNH
-# ----------------------------------------------------------------------------
-st.title("🌴 Smart Tour - Quản lý & Đặt tour")
-
-tab_book, tab_manage, tab_stats, tab_policy = st.tabs([
-    "🧭 Đặt tour", 
-    "📋 Đơn đặt của tôi", 
-    "📊 Thống kê Nội bộ", 
-    "ℹ️ Chính sách & bảng giá"
-])
-
-# TAB 1: ĐẶT TOUR
-with tab_book:
-    col_form, col_sum = st.columns([3, 2], gap="large")
-    with col_form:
-        st.subheader("1. Chọn tour")
-        tour_id = st.selectbox("Tour", list(TOURS), format_func=lambda k: f"{TOURS[k]['name']} - {vnd(TOURS[k]['base'])}")
-        tour = TOURS[tour_id]
-
-        st.subheader("2. Ngày khởi hành")
-        depart = st.date_input("Ngày khởi hành", value=date.today() + timedelta(days=30))
-
-        st.subheader("3. Khách tham gia")
-        n_guests = st.number_input("Tổng số khách", 1, 30, 2)
-        ages = [st.number_input(f"Tuổi khách {i+1}", 0, 100, 30, key=f"a_{i}") for i in range(int(n_guests))]
-
-        st.subheader("4. Khách sạn")
-        hotel_choice = st.selectbox("Khách sạn", ["Không đặt khách sạn"] + [f"{n} ({s}★)" for n, s in tour["hotels"]])
-        hotel, rooms = None, {rt: 0 for rt in ROOM_TYPES}
-        if hotel_choice != "Không đặt khách sạn":
-            h_idx = [f"{n} ({s}★)" for n, s in tour["hotels"]].index(hotel_choice)
-            hotel = tour["hotels"][h_idx]
-            rooms["Standard"] = st.number_input("Số phòng Standard", 0, 10, 1)
-
-        extras = st.multiselect("Dịch vụ thêm", list(EXTRAS))
+# --- TAB 2: ĐẶT TOUR MỚI ---
+elif menu == "Đặt Tour Mới":
+    st.header("📝 Biểu Mẫu Đặt Tour Trực Tuyến")
+    
+    with st.form("booking_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            c_name = st.text_input("Họ và tên khách hàng *")
+            c_phone = st.text_input("Số điện thoại *")
+            c_email = st.text_input("Địa chỉ Email")
+            tour_selected = st.selectbox("Chọn Tour Du Lịch *", list(TOURS.keys()), format_func=lambda x: f"{x} - {TOURS[x]['name']}")
         
-        st.subheader("5. Thông tin khách hàng")
-        name = st.text_input("Họ tên")
-        phone = st.text_input("Số điện thoại")
-        email = st.text_input("Email")
-        payment = st.selectbox("Thanh toán", ["Chuyển khoản", "Tiền mặt"])
-
-    quote = calc_quote(tour, depart, ages, hotel, rooms, extras, "")
-
-    with col_sum:
-        st.subheader("💰 Báo giá")
-        st.metric("Tổng tiền", vnd(quote["total"]))
-        st.metric("Cọc (30%)", vnd(quote["deposit"]))
+        with col2:
+            dep_date = st.date_input("Ngày khởi hành *", min_value=date.today())
+            n_adults = st.number_input("Số lượng người lớn (100% giá)", min_value=1, value=1)
+            n_children = st.number_input("Số lượng trẻ em (70% giá)", min_value=0, value=0)
+            discount_code = st.text_input("Mã giảm giá (nếu có)")
+            
+        submitted = st.form_submit_button("Xác Nhận Đặt Tour")
         
-        if st.button("✅ Xác nhận đặt tour", type="primary", use_container_width=True):
-            if not name or not phone or "@" not in email:
-                st.error("Vui lòng điền đầy đủ thông tin liên hệ!")
+        if submitted:
+            if not c_name or not c_phone:
+                st.error("Vui lòng điền đầy đủ Họ tên và Số điện thoại!")
             else:
-                b = {
-                    "code": f"ST{datetime.now():%y%m%d}-{uuid.uuid4().hex[:4].upper()}",
-                    "customer": name, "phone": phone, "email": email, "tour": tour["name"],
-                    "depart": f"{depart:%Y-%m-%d} 08:00", "return": f"{depart+timedelta(days=tour['days']):%Y-%m-%d} 18:00",
-                    "n_guests": int(n_guests), "hotel": hotel_choice,
-                    "rooms": ", ".join(f"{q} {rt}" for rt, q in rooms.items() if q),
-                    "payment": payment, "note": "", "status": "Chờ thanh toán cọc"
-                }
-                insert_booking(b, tour_id, quote, ages)
-                st.balloons()
-                st.success(f"Đặt tour thành công! Mã đơn: {b['code']}")
+                base_price = TOURS[tour_selected]['price']
+                raw_total = (n_adults * base_price) + (n_children * base_price * 0.7)
+                
+                discount_amt = 0
+                if discount_code.upper() == "SMART20":
+                    discount_amt = raw_total * MAX_DISCOUNT_PCT
+                
+                vat_amt = (raw_total - discount_amt) * VAT_RATE
+                final_total = (raw_total - discount_amt) + vat_amt
+                deposit_required = final_total * DEPOSIT_RATE
+                
+                booking_id = f"BK-{uuid.uuid4().hex[:6].upper()}"
+                
+                conn = get_db_connection()
+                if conn:
+                    try:
+                        cursor = conn.cursor()
+                        query = """
+                        INSERT INTO bookings 
+                        (id, customer_name, phone, email, tour_id, tour_name, departure_date, num_adults, num_children, total_price, deposit_amount, discount_amount, status, created_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """
+                        val = (
+                            booking_id, c_name, c_phone, c_email, tour_selected, 
+                            TOURS[tour_selected]['name'], dep_date, n_adults, n_children, 
+                            final_total, deposit_required, discount_amt, "Chờ xác nhận", datetime.now()
+                        )
+                        cursor.execute(query, val)
+                        conn.commit()
+                        cursor.close()
+                        conn.close()
+                        
+                        st.success(f"🎉 Đặt tour thành công! Mã đơn: **{booking_id}**")
+                        st.info(f"Tổng tiền: **{final_total:,.0f} VNĐ** (Đã bao gồm VAT) | Tối thiểu cọc: **{deposit_required:,.0f} VNĐ**")
+                    except Exception as e:
+                        st.error(f"Lỗi lưu booking: {e}")
 
-# TAB 2: ĐƠN ĐẶT CỦA TÔI
-with tab_manage:
-    st.subheader("📋 Trạng thái đơn đặt tour")
-    kw = st.text_input("Tìm kiếm theo mã / SĐT / Email")
-    rows = fetch_bookings(kw)
-    if rows:
-        st.dataframe(pd.DataFrame(rows)[['code', 'customer', 'phone', 'tour_name', 'total', 'status']], use_container_width=True)
-
-# TAB 3: THỐNG KÊ NỘI BỘ
-with tab_stats:
-    st.subheader("📊 Báo cáo & Thống kê Kinh doanh (Nội bộ)")
-    if not db_error:
+# --- TAB 3: QUẢN LÝ ĐƠN ĐẶT TOUR ---
+elif menu == "Quản Lý Đơn Đặt Tour":
+    st.header("📂 Danh Sách Đơn Đặt Tour Trong Hệ Thống")
+    
+    conn = get_db_connection()
+    if conn:
         try:
-            conn = get_conn()
+            df = pd.read_sql("SELECT * FROM bookings ORDER BY created_at DESC", conn)
+            conn.close()
+            
+            if df.empty:
+                st.warning("Chưa có đơn đặt tour nào trong hệ thống.")
+            else:
+                st.dataframe(
+                    df,
+                    column_config={
+                        "id": "Mã Booking",
+                        "customer_name": "Khách Hàng",
+                        "phone": "Số Điện Thoại",
+                        "tour_name": "Tên Tour",
+                        "departure_date": "Ngày Đi",
+                        "total_price": st.column_config.NumberColumn("Tổng Tiền (VNĐ)", format="%d"),
+                        "deposit_amount": st.column_config.NumberColumn("Tiền Cọc (VNĐ)", format="%d"),
+                        "status": "Trạng Thái"
+                    },
+                    use_container_width=True
+                )
+        except Exception as e:
+            st.error(f"Lỗi tải dữ liệu: {e}")
+
+# --- TAB 4: THỐNG KÊ DOANH THU ---
+elif menu == "Thống Kê Doanh Thu":
+    st.header("📊 Báo Cáo & Thống Kê Kinh Doanh")
+    
+    conn = get_db_connection()
+    if conn:
+        try:
             df = pd.read_sql("SELECT * FROM bookings", conn)
             conn.close()
-
+            
             if not df.empty:
-                df['total'] = df['total'].astype(float)
-                df['deposit'] = df['deposit'].astype(float)
-
-                c1, c2, c3 = st.columns(3)
-                c1.metric("💰 Tổng Doanh Thu", vnd(df['total'].sum()))
-                c2.metric("💵 Tiền Cọc Đã Thu", vnd(df['deposit'].sum()))
-                c3.metric("📈 Tổng Đơn Đặt", len(df))
-
-                st.divider()
-                st.write("📈 **Doanh thu theo Tour**")
-                st.bar_chart(df.groupby('tour_name')['total'].sum())
-
-                st.write("📑 **Xuất dữ liệu cho Kế toán**")
-                csv_data = df.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
-                st.download_button("📥 Tải File Excel Báo Cáo", csv_data, f"bao_cao_{date.today()}.csv", "text/csv")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Tổng Đơn Đặt", f"{len(df)} đơn")
+                with col2:
+                    st.metric("Tổng Doanh Thu", f"{df['total_price'].sum():,.0f} VNĐ")
+                with col3:
+                    st.metric("Tổng Tiền Cọc Đã Nhận", f"{df['deposit_amount'].sum():,.0f} VNĐ")
+                
+                st.markdown("---")
+                st.subheader("Doanh Thu Theo Tour")
+                tour_summary = df.groupby("tour_name")["total_price"].sum().reset_index()
+                st.bar_chart(tour_summary, x="tour_name", y="total_price")
             else:
-                st.info("Chưa có đơn đặt nào.")
-        except Exception as ex:
-            st.error(f"Lỗi tải dữ liệu: {ex}")
-
-# TAB 4: CHÍNH SÁCH
-with tab_policy:
-    st.subheader("Thông tin chính sách giá")
-    st.table(pd.DataFrame([{"Mức tuổi": l, "% Giá": f"{f:.0%}"} for _, _, l, f in AGE_GROUPS]))
+                st.info("Chưa có dữ liệu thống kê.")
+        except Exception as e:
+            st.error(f"Lỗi tải thống kê: {e}")
