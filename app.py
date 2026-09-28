@@ -457,33 +457,104 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Nút hình bong bóng tròn chứa icon
-with st.popover("💬"):
-    st.subheader("🤖 Trợ lý AI Smart Tour")
-    st.caption("Tư vấn lịch trình & chọn tour 24/7")
+# ============================== CHATBOT AI QUẢ CẦU 3D NỔI (TPBANK STYLE) ==============================
+st.markdown("""
+    <style>
+    /* Ghim widget ở góc dưới bên phải màn hình */
+    div[data-testid="stPopover"] {
+        position: fixed;
+        bottom: 25px;
+        right: 25px;
+        z-index: 999999;
+    }
 
-    api_key = st.text_input("Gemini API Key:", type="password", key="round_popover_key")
+    /* Thiết kế nút bấm thành Quả cầu AI 3D phát sáng */
+    div[data-testid="stPopover"] > button {
+        width: 65px !important;
+        height: 65px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+        border: none !important;
+        /* Phối màu Gradient tạo khối cầu 3D */
+        background: radial-gradient(circle at 35% 35%, #e9d5ff, #a855f7 40%, #6366f1 70%, #1e1b4b 100%) !important;
+        box-shadow: 0 8px 25px rgba(168, 85, 247, 0.5), inset -3px -3px 8px rgba(0,0,0,0.4) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+        transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+        position: relative !important;
+    }
+
+    /* Hiệu ứng Phóng to & Bật sáng khi di chuột vào Quả cầu */
+    div[data-testid="stPopover"] > button:hover {
+        transform: scale(1.1) rotate(5deg);
+        box-shadow: 0 12px 30px rgba(168, 85, 247, 0.7), inset -2px -2px 6px rgba(0,0,0,0.3) !important;
+    }
+
+    /* Tạo bong bóng thoại nhỏ nhô ra phía trên quả cầu */
+    div[data-testid="stPopover"] > button::before {
+        content: "SmartAI sẵn sàng! ✨";
+        position: absolute;
+        top: -38px;
+        right: 0;
+        white-space: nowrap;
+        background: #ffffff;
+        color: #581c87;
+        font-weight: 600;
+        font-size: 12px;
+        padding: 4px 10px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border: 1px solid #e9d5ff;
+        pointer-events: none;
+    }
+
+    /* Tam giác nhỏ chỉ xuống quả cầu từ bong bóng thoại */
+    div[data-testid="stPopover"] > button::after {
+        content: "";
+        position: absolute;
+        top: -10px;
+        right: 22px;
+        border-width: 6px 6px 0;
+        border-style: solid;
+        border-color: #ffffff transparent;
+        display: block;
+        width: 0;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Nội dung icon hiển thị bên trong Quả cầu 3D
+sphere_icon = """<span style="font-size: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">🔮</span>"""
+
+# Khởi tạo Popover chứa nội dung khung chat
+with st.popover(sphere_icon):
+    st.subheader("🤖 Trợ lý AI Smart Tour")
+    st.caption("Tư vấn lịch trình & hỗ trợ chọn tour 24/7")
+
+    api_key = st.text_input("Nhập Gemini API Key:", type="password", key="sphere_ai_key")
 
     if not api_key:
-        st.info("💡 Vui lòng dán Gemini API Key để trò chuyện.")
+        st.info("💡 Vui lòng dán Gemini API Key để trò chuyện cùng AI.")
     else:
         try:
             import google.genai as genai
             client = genai.Client(api_key=api_key)
 
-            if "round_messages" not in st.session_state:
-                st.session_state.round_messages = [
-                    {"role": "model", "content": "Xin chào! Bạn cần tư vấn tour nào hôm nay?"}
+            if "sphere_messages" not in st.session_state:
+                st.session_state.sphere_messages = [
+                    {"role": "model", "content": "Xin chào! Tôi là Trợ lý AI Smart Tour 🌴. Bạn cần hỗ trợ gì hôm nay?"}
                 ]
 
-            chat_container = st.container(height=320)
+            chat_container = st.container(height=340)
             with chat_container:
-                for msg in st.session_state.round_messages:
+                for msg in st.session_state.sphere_messages:
                     with st.chat_message(msg["role"]):
                         st.markdown(msg["content"])
 
-            if prompt := st.chat_input("Hỏi AI..."):
-                st.session_state.round_messages.append({"role": "user", "content": prompt})
+            if prompt := st.chat_input("Hỏi SmartAI..."):
+                st.session_state.sphere_messages.append({"role": "user", "content": prompt})
                 
                 system_context = f"Bạn là trợ lý tư vấn du lịch của Smart Tour. Danh sách tour: {list(TOURS.values())}."
                 response = client.models.generate_content(
@@ -491,8 +562,8 @@ with st.popover("💬"):
                     contents=f"{system_context}\n\nCâu hỏi: {prompt}"
                 )
                 
-                st.session_state.round_messages.append({"role": "model", "content": response.text})
+                st.session_state.sphere_messages.append({"role": "model", "content": response.text})
                 st.rerun()
 
         except Exception as e:
-            st.error(f"Lỗi: {e}")
+            st.error(f"Lỗi kết nối AI: {e}")
