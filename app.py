@@ -23,7 +23,7 @@ DB_CONFIG = {
     "connection_timeout": 15,
     "charset": "utf8mb4",
 }
-
+import google.generativeai as genai
 
 # Lấy khóa API từ Secrets
 API_KEY = st.secrets.get("GEMINI_API_KEY", "")
