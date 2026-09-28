@@ -580,42 +580,101 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Khởi tạo Popover (chuỗi 'ai' ngắn gọn để tránh lỗi render)
-with st.popover("ai"):
-    st.subheader("🤖 Trợ lý AI Smart Tour")
-    st.caption("Tư vấn lịch trình & hỗ trợ chọn tour 24/7")
+# ============================== CHATBOT AI QUẢ CẦU NỔI GÓC DƯỚI ==============================
+import streamlit.components.v1 as components
 
-    api_key = st.text_input("Nhập Gemini API Key:", type="password", key="round_sphere_key")
+# 1. CSS & HTML dựng Quả cầu AI floating chuẩn 100%
+floating_chat_html = """
+<style>
+    /* Quả cầu AI floating góc dưới bên phải */
+    .ai-sphere-btn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 35%, #e9d5ff, #a855f7 40%, #6366f1 70%, #1e1b4b 100%);
+        box-shadow: 0 8px 25px rgba(168, 85, 247, 0.6);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        z-index: 999999;
+        transition: all 0.3s ease;
+        border: 2px solid rgba(255, 255, 255, 0.8);
+    }
+    .ai-sphere-btn:hover {
+        transform: scale(1.12) rotate(8deg);
+        box-shadow: 0 12px 30px rgba(168, 85, 247, 0.8);
+    }
+    /* Nhãn tooltip nhỏ nhô ra phía trên */
+    .ai-tooltip {
+        position: fixed;
+        bottom: 88px;
+        right: 20px;
+        background: #ffffff;
+        color: #581c87;
+        font-family: sans-serif;
+        font-size: 12px;
+        font-weight: bold;
+        padding: 5px 12px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        border: 1px solid #e9d5ff;
+        z-index: 999999;
+        pointer-events: none;
+    }
+    .ai-tooltip::after {
+        content: "";
+        position: absolute;
+        bottom: -6px;
+        right: 22px;
+        border-width: 6px 6px 0;
+        border-style: solid;
+        border-color: #ffffff transparent;
+    }
+</style>
 
+<div class="ai-tooltip">SmartAI sẵn sàng! ✨</div>
+<div class="ai-sphere-btn" onclick="window.parent.postMessage({type: 'OPEN_AI_CHAT'}, '*')">
+    🔮
+</div>
+"""
+
+# Render widget trực tiếp
+components.html(floating_chat_html, height=0)
+
+# 2. Khung chat hiển thị khi mở Sidebar/Tab
+st.sidebar.markdown("---")
+with st.sidebar.expander("💬 **Trợ lý AI Smart Tour**", expanded=False):
+    api_key = st.text_input("Gemini API Key:", type="password", key="sidebar_key")
     if not api_key:
-        st.info("💡 Vui lòng dán Gemini API Key để trò chuyện cùng AI.")
+        st.info("💡 Vui lòng nhập Gemini API Key.")
     else:
         try:
             import google.genai as genai
             client = genai.Client(api_key=api_key)
 
-            if "round_messages" not in st.session_state:
-                st.session_state.round_messages = [
-                    {"role": "model", "content": "Xin chào! Tôi là Trợ lý AI Smart Tour 🌴. Bạn cần hỗ trợ gì hôm nay?"}
+            if "sb_messages" not in st.session_state:
+                st.session_state.sb_messages = [
+                    {"role": "model", "content": "Xin chào! Tôi là Trợ lý AI Smart Tour. Bạn cần tư vấn tour nào?"}
                 ]
 
-            chat_container = st.container(height=340)
-            with chat_container:
-                for msg in st.session_state.round_messages:
+            chat_box = st.container(height=300)
+            with chat_box:
+                for msg in st.session_state.sb_messages:
                     with st.chat_message(msg["role"]):
                         st.markdown(msg["content"])
 
-            if prompt := st.chat_input("Hỏi SmartAI..."):
-                st.session_state.round_messages.append({"role": "user", "content": prompt})
-                
-                system_context = f"Bạn là trợ lý tư vấn du lịch của Smart Tour. Danh sách tour: {list(TOURS.values())}."
+            if prompt := st.chat_input("Hỏi AI...", key="sb_prompt"):
+                st.session_state.sb_messages.append({"role": "user", "content": prompt})
                 response = client.models.generate_content(
                     model="gemini-2.5-flash",
-                    contents=f"{system_context}\n\nCâu hỏi: {prompt}"
+                    contents=f"Bạn là trợ lý du lịch Smart Tour. Danh sách tour: {list(TOURS.values())}.\n\nKhách hỏi: {prompt}"
                 )
-                
-                st.session_state.round_messages.append({"role": "model", "content": response.text})
+                st.session_state.sb_messages.append({"role": "model", "content": response.text})
                 st.rerun()
-
         except Exception as e:
-            st.error(f"Lỗi kết nối AI: {e}")
+            st.error(f"Lỗi: {e}")
