@@ -525,15 +525,67 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Nội dung icon hiển thị bên trong Quả cầu 3D
-sphere_icon = """<span style="font-size: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">🔮</span>"""
+# ============================== NÚT CHATBOT QUẢ CẦU AI TRÒN ==============================
+st.markdown("""
+    <style>
+    /* 1. Định vị container Popover ở góc dưới bên phải */
+    div[data-testid="stPopover"] {
+        position: fixed !important;
+        bottom: 25px !important;
+        right: 25px !important;
+        z-index: 999999 !important;
+    }
 
-# Khởi tạo Popover chứa nội dung khung chat
-with st.popover(sphere_icon):
+    /* 2. Ép nút popover thành hình tròn 60x60px tuyệt đối */
+    div[data-testid="stPopover"] > button {
+        width: 60px !important;
+        height: 60px !important;
+        min-width: 60px !important;
+        max-width: 60px !important;
+        min-height: 60px !important;
+        max-height: 60px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        background: radial-gradient(circle at 35% 35%, #e9d5ff, #a855f7 40%, #6366f1 70%, #1e1b4b 100%) !important;
+        box-shadow: 0 6px 20px rgba(168, 85, 247, 0.5) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+        transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+        overflow: hidden !important;
+    }
+
+    /* 3. Hiệu ứng phóng to khi rê chuột */
+    div[data-testid="stPopover"] > button:hover {
+        transform: scale(1.1);
+        box-shadow: 0 10px 25px rgba(168, 85, 247, 0.7) !important;
+    }
+
+    /* 4. Ẩn toàn bộ văn bản thừa dư thừa do Streamlit render ra */
+    div[data-testid="stPopover"] > button p,
+    div[data-testid="stPopover"] > button span {
+        display: none !important;
+    }
+
+    /* 5. Chèn icon quả cầu 🔮 trực tiếp vào nút bằng CSS pseudo-element */
+    div[data-testid="stPopover"] > button::after {
+        content: "🔮";
+        font-size: 26px;
+        display: block;
+        line-height: 1;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Khởi tạo Popover (chuỗi 'ai' ngắn gọn để tránh lỗi render)
+with st.popover("ai"):
     st.subheader("🤖 Trợ lý AI Smart Tour")
     st.caption("Tư vấn lịch trình & hỗ trợ chọn tour 24/7")
 
-    api_key = st.text_input("Nhập Gemini API Key:", type="password", key="sphere_ai_key")
+    api_key = st.text_input("Nhập Gemini API Key:", type="password", key="round_sphere_key")
 
     if not api_key:
         st.info("💡 Vui lòng dán Gemini API Key để trò chuyện cùng AI.")
@@ -542,19 +594,19 @@ with st.popover(sphere_icon):
             import google.genai as genai
             client = genai.Client(api_key=api_key)
 
-            if "sphere_messages" not in st.session_state:
-                st.session_state.sphere_messages = [
+            if "round_messages" not in st.session_state:
+                st.session_state.round_messages = [
                     {"role": "model", "content": "Xin chào! Tôi là Trợ lý AI Smart Tour 🌴. Bạn cần hỗ trợ gì hôm nay?"}
                 ]
 
             chat_container = st.container(height=340)
             with chat_container:
-                for msg in st.session_state.sphere_messages:
+                for msg in st.session_state.round_messages:
                     with st.chat_message(msg["role"]):
                         st.markdown(msg["content"])
 
             if prompt := st.chat_input("Hỏi SmartAI..."):
-                st.session_state.sphere_messages.append({"role": "user", "content": prompt})
+                st.session_state.round_messages.append({"role": "user", "content": prompt})
                 
                 system_context = f"Bạn là trợ lý tư vấn du lịch của Smart Tour. Danh sách tour: {list(TOURS.values())}."
                 response = client.models.generate_content(
@@ -562,7 +614,7 @@ with st.popover(sphere_icon):
                     contents=f"{system_context}\n\nCâu hỏi: {prompt}"
                 )
                 
-                st.session_state.sphere_messages.append({"role": "model", "content": response.text})
+                st.session_state.round_messages.append({"role": "model", "content": response.text})
                 st.rerun()
 
         except Exception as e:
