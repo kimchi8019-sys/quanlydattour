@@ -17,7 +17,7 @@ DB_CONFIG = {
     "port": 21314,
     "user": "avnadmin",
     "password": "AVNS_ZuLUVTHk6cKBskjg0Kp",
-    "database": "defaultdb",
+    "database": "smarttour_db",
     "ssl_disabled": False,  # Aiven bắt buộc sử dụng SSL
     "connection_timeout": 15,
     "charset": "utf8mb4",
