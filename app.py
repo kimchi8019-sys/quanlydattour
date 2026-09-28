@@ -186,11 +186,11 @@ def init_database():
                 payment_status VARCHAR(50) NOT NULL DEFAULT 'Chưa thanh toán',
                 note VARCHAR(500),
                 created_at DATETIME NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-                FOREIGN KEY (tour_id) REFERENCES tours(id),
-                FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE SET NULL,
-                FOREIGN KEY (meal_id) REFERENCES meals(id) ON DELETE SET NULL,
-                FOREIGN KEY (transport_id) REFERENCES transports(id) ON DELETE SET NULL
+                INDEX idx_bookings_user (user_id),
+                INDEX idx_bookings_tour (tour_id),
+                INDEX idx_bookings_room (room_id),
+                INDEX idx_bookings_meal (meal_id),
+                INDEX idx_bookings_transport (transport_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
         ]
         for sql in tables:
