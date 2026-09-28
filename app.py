@@ -422,36 +422,68 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Tạo Nút Bong Bóng Chat Nổi (Pop-over)
-with st.popover("💬 Trợ lý AI Smart Tour"):
-    st.subheader("🤖 Tư vấn du lịch 24/7")
-    st.caption("Giải đáp lịch trình, thời tiết & gợi ý tour")
+# ============================== CHATBOT AI BONG BÓNG TRÒN ==============================
+# CSS biến nút Popover thành Nút Tròn Float Widget cố định góc phải
+st.markdown("""
+    <style>
+    /* Vị trí cố định góc dưới bên phải */
+    div[data-testid="stPopover"] {
+        position: fixed;
+        bottom: 25px;
+        right: 25px;
+        z-index: 999999;
+    }
+    /* Biến nút thành hình tròn 56x56px */
+    div[data-testid="stPopover"] > button {
+        background-color: #0084ff !important;
+        color: white !important;
+        width: 58px !important;
+        height: 58px !important;
+        border-radius: 50% !important;
+        padding: 0px !important;
+        margin: 0px !important;
+        border: none !important;
+        box-shadow: 0px 4px 15px rgba(0,0,0,0.3) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 26px !important;
+    }
+    div[data-testid="stPopover"] > button:hover {
+        background-color: #006bce !important;
+        transform: scale(1.08);
+        transition: all 0.2s ease-in-out;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-    # Nhập API Key
-    api_key = st.text_input("Gemini API Key:", type="password", key="popover_api_key")
+# Nút hình bong bóng tròn chứa icon
+with st.popover("💬"):
+    st.subheader("🤖 Trợ lý AI Smart Tour")
+    st.caption("Tư vấn lịch trình & chọn tour 24/7")
+
+    api_key = st.text_input("Gemini API Key:", type="password", key="round_popover_key")
 
     if not api_key:
-        st.info("💡 Bổ sung Gemini API Key để trò chuyện với AI.")
+        st.info("💡 Vui lòng dán Gemini API Key để trò chuyện.")
     else:
         try:
             import google.genai as genai
             client = genai.Client(api_key=api_key)
 
-            if "popover_messages" not in st.session_state:
-                st.session_state.popover_messages = [
-                    {"role": "model", "content": "Xin chào! Bạn cần tư vấn tour gì hôm nay?"}
+            if "round_messages" not in st.session_state:
+                st.session_state.round_messages = [
+                    {"role": "model", "content": "Xin chào! Bạn cần tư vấn tour nào hôm nay?"}
                 ]
 
-            # Khung hiển thị tin nhắn có chiều cao cố định
-            chat_container = st.container(height=300)
+            chat_container = st.container(height=320)
             with chat_container:
-                for msg in st.session_state.popover_messages:
+                for msg in st.session_state.round_messages:
                     with st.chat_message(msg["role"]):
                         st.markdown(msg["content"])
 
-            # Ô nhập liệu chat
             if prompt := st.chat_input("Hỏi AI..."):
-                st.session_state.popover_messages.append({"role": "user", "content": prompt})
+                st.session_state.round_messages.append({"role": "user", "content": prompt})
                 
                 system_context = f"Bạn là trợ lý tư vấn du lịch của Smart Tour. Danh sách tour: {list(TOURS.values())}."
                 response = client.models.generate_content(
@@ -459,7 +491,7 @@ with st.popover("💬 Trợ lý AI Smart Tour"):
                     contents=f"{system_context}\n\nCâu hỏi: {prompt}"
                 )
                 
-                st.session_state.popover_messages.append({"role": "model", "content": response.text})
+                st.session_state.round_messages.append({"role": "model", "content": response.text})
                 st.rerun()
 
         except Exception as e:
