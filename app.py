@@ -24,8 +24,10 @@ DB_CONFIG = {
     "charset": "utf8mb4",
 }
 
-api_key = st.secrets.get("GEMINI_API_KEY", "")
-client = genai.Client(api_key=api_key)
+
+# Lấy khóa API từ Secrets
+API_KEY = st.secrets.get("GEMINI_API_KEY", "")
+genai.configure(api_key=API_KEY)
 
 VAT_RATE = 0.08
 DEPOSIT_RATE = 0.30
