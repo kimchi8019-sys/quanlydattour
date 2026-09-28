@@ -85,12 +85,6 @@ AGE_GROUPS = [
 
 TOUR_SEASON = {"peak": 1.25, "high": 1.10, "normal": 1.00, "low": 0.92}
 HOTEL_SEASON = {"peak": 1.60, "high": 1.20, "normal": 1.00, "low": 0.85}
-SEASON_LABEL = {
-    "peak": "Cao điểm lễ/Tết",
-    "high": "Mùa cao điểm hè",
-    "normal": "Mùa thường",
-    "low": "Mùa thấp điểm",
-}
 
 EXTRAS = {
     "Bảo hiểm du lịch": {"price": 60_000, "unit": "người"},
@@ -98,12 +92,6 @@ EXTRAS = {
     "Hướng dẫn viên riêng": {"price": 1_200_000, "unit": "ngày"},
     "Gói ăn uống nâng cấp": {"price": 250_000, "unit": "người/ngày"},
     "Vé tham quan VIP (fast-track)": {"price": 300_000, "unit": "người"},
-}
-
-PROMOS = {
-    "SMART10": {"type": "pct", "value": 0.10, "desc": "Giảm 10% giá tour"},
-    "WELCOME": {"type": "flat", "value": 200_000, "desc": "Giảm 200.000đ"},
-    "FAMILY5": {"type": "pct", "value": 0.05, "desc": "Giảm 5% giá tour"},
 }
 
 HOLIDAYS = [
@@ -283,7 +271,7 @@ def calc_quote(tour, depart, ages, hotel, rooms, extras, promo_code):
     }
 
 # ----------------------------------------------------------------------------
-# GIAO DIỆN CHÍNH
+# THIẾT LẬP CƠ SỞ DỮ LIỆU & THANH BÊN (SIDEBAR)
 # ----------------------------------------------------------------------------
 db_error = init_db()
 
@@ -293,16 +281,57 @@ with st.sidebar:
         st.error("Chưa kết nối được MySQL")
     else:
         st.success("Đã kết nối MySQL Aiven!")
+        
+    st.divider()
 
+    # ================= KHU VỰC CHATBOT AI NHỎ GỌN PHÍA BÊN TRÁI =================
+    st.subheader("💬 Trợ lý AI Smart Tour")
+    
+    try:
+        # Sử dụng thư viện google-generativeai phổ biến
+        import google.generativeai as genai
+        genai.configure(api_key=API_KEY)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+
+        if "ai_chat_history" not in st.session_state:
+            st.session_state.ai_chat_history = [
+                {"role": "model", "parts": ["Xin chào! Tôi là Trợ lý AI Smart Tour 🌴. Bạn cần tư vấn tour nào hôm nay?"]}
+            ]
+
+        # Khung chat nhỏ gọn trên sidebar
+        chat_box = st.container(height=280)
+        with chat_box:
+            for msg in st.session_state.ai_chat_history:
+                role = "assistant" if msg["role"] == "model" else "user"
+                with st.chat_message(role):
+                    st.markdown(msg["parts"][0])
+
+        if prompt := st.chat_input("Hỏi AI..."):
+            st.session_state.ai_chat_history.append({"role": "user", "parts": [prompt]})
+            
+            system_context = f"Bạn là trợ lý tư vấn du lịch của Smart Tour. Các tour hiện có: {list(TOURS.values())}."
+            
+            # Khởi tạo trò chuyện
+            chat = model.start_chat(history=st.session_state.ai_chat_history[:-1])
+            response = chat.send_message(f"{system_context}\n\nKhách hàng hỏi: {prompt}")
+            
+            st.session_state.ai_chat_history.append({"role": "model", "parts": [response.text]})
+            st.rerun()
+
+    except Exception as e:
+        st.error(f"Lỗi kết nối AI: {e}")
+
+# ----------------------------------------------------------------------------
+# GIAO DIỆN CHÍNH
+# ----------------------------------------------------------------------------
 st.title("🌴 Smart Tour - Quản lý & Đặt tour")
 
-# KHAI BÁO CÁC TAB
-tab_book, tab_manage, tab_stats, tab_policy, tab_chatbot = st.tabs([
+# KHAI BÁO CÁC TAB TRANG CHÍNH
+tab_book, tab_manage, tab_stats, tab_policy = st.tabs([
     "🧭 Đặt tour", 
     "📋 Đơn đặt của tôi", 
     "📊 Thống kê Nội bộ", 
-    "ℹ️ Chính sách & bảng giá", 
-    "🤖 Trợ lý AI"
+    "ℹ️ Chính sách & bảng giá"
 ])
 
 # TAB 1: ĐẶT TOUR
@@ -401,87 +430,3 @@ with tab_stats:
 with tab_policy:
     st.subheader("Thông tin chính sách giá")
     st.table(pd.DataFrame([{"Mức tuổi": l, "% Giá": f"{f:.0%}"} for _, _, l, f in AGE_GROUPS]))
-
-# TAB 5: TRỢ LÝ AI (HƯỚNG DẪN TRONG TAB TRANG CHÍNH)
-with tab_chatbot:
-    st.subheader("🤖 Trợ lý Trí Tuệ Nhân Tạo Smart Tour")
-    st.info("💡 Bạn có thể trò chuyện trực tiếp với AI tư vấn du lịch 24/7 bằng cách nhấn vào **Quả cầu tím 🔮** ở góc dưới bên phải màn hình!")
-
-# ============================== GIAO DIỆN QUẢ CẦU AI FLOATING 3D ==============================
-
-st.markdown("""
-    <style>
-    div[data-testid="stPopover"] {
-        position: fixed !important;
-        bottom: 25px !important;
-        right: 25px !important;
-        z-index: 999999 !important;
-    }
-    div[data-testid="stPopover"] > button {
-        width: 60px !important;
-        height: 60px !important;
-        min-width: 60px !important;
-        max-width: 60px !important;
-        min-height: 60px !important;
-        max-height: 60px !important;
-        border-radius: 50% !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        border: 2px solid rgba(255, 255, 255, 0.8) !important;
-        background: radial-gradient(circle at 35% 35%, #e9d5ff, #a855f7 40%, #6366f1 70%, #1e1b4b 100%) !important;
-        box-shadow: 0 8px 25px rgba(168, 85, 247, 0.6) !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        cursor: pointer !important;
-        transition: transform 0.3s ease !important;
-    }
-    div[data-testid="stPopover"] > button:hover {
-        transform: scale(1.12) rotate(6deg) !important;
-    }
-    div[data-testid="stPopover"] > button p,
-    div[data-testid="stPopover"] > button span {
-        display: none !important;
-    }
-    div[data-testid="stPopover"] > button::after {
-        content: "🔮";
-        font-size: 26px;
-        display: block;
-        line-height: 1;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-with st.popover("ai"):
-    st.subheader("🤖 Trợ lý AI Smart Tour")
-    st.caption("Tư vấn lịch trình & hỗ trợ chọn tour 24/7")
-
-    try:
-        import google.genai as genai
-        client = genai.Client(api_key=API_KEY)
-
-        if "ai_chat_history" not in st.session_state:
-            st.session_state.ai_chat_history = [
-                {"role": "model", "content": "Xin chào! Tôi là Trợ lý AI Smart Tour 🌴. Bạn cần tư vấn tour gì hôm nay?"}
-            ]
-
-        chat_container = st.container(height=340)
-        with chat_container:
-            for msg in st.session_state.ai_chat_history:
-                with st.chat_message(msg["role"]):
-                    st.markdown(msg["content"])
-
-        if prompt := st.chat_input("Hỏi SmartAI..."):
-            st.session_state.ai_chat_history.append({"role": "user", "content": prompt})
-            
-            system_context = f"Bạn là trợ lý tư vấn du lịch của Smart Tour. Danh sách tour hiện có: {list(TOURS.values())}."
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=f"{system_context}\n\nKhách hàng hỏi: {prompt}"
-            )
-            
-            st.session_state.ai_chat_history.append({"role": "model", "content": response.text})
-            st.rerun()
-
-    except Exception as e:
-        st.error(f"Lỗi kết nối AI: {e}")
