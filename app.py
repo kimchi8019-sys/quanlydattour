@@ -1,4 +1,3 @@
-
 import streamlit as st
 import mysql.connector
 from mysql.connector import Error
@@ -65,9 +64,11 @@ def init_db():
             id INT AUTO_INCREMENT PRIMARY KEY,
             full_name VARCHAR(150) NOT NULL,
             phone VARCHAR(30) NOT NULL,
+            username VARCHAR(80) UNIQUE NOT NULL,
             password VARCHAR(255) NOT NULL,
             role VARCHAR(20) NOT NULL DEFAULT 'customer',
             created_at DATETIME NOT NULL
+
         ) ENGINE=InnoDB
     """)
 
