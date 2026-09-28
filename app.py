@@ -423,6 +423,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================== CHATBOT AI BONG BÓNG TRÒN ==============================
+# API Key Gemini của bạn đã được tích hợp sẵn
+api_key = "AQ.Ab8RN6IM461mnzeOQSAixx99OmjFuxYko81rzl1en1224_grmQ"
 # CSS biến nút Popover thành Nút Tròn Float Widget cố định góc phải
 st.markdown("""
     <style>
