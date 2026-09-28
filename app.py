@@ -7,7 +7,7 @@ import streamlit as st
 import mysql.connector
 
 st.set_page_config(page_title="SMART TOUR", page_icon="🌴", layout="wide", initial_sidebar_state="expanded")
-APP_VERSION = "SMART TOUR v2.2 – MySQL no-FK schema"
+APP_VERSION = "SMART TOUR v2.3 – Gemini REST authentication"
 
 # ============================================================
 # SMART TOUR - CUSTOMER + ADMIN + AI CHATBOT + MYSQL AIVEN
@@ -41,24 +41,44 @@ def load_db_config():
 
 
 def get_ai_key():
+    """Read and normalize the Gemini API key from Streamlit Secrets/env."""
+    value = ""
     try:
         if "GEMINI_API_KEY" in st.secrets:
-            return str(st.secrets["GEMINI_API_KEY"])
+            value = str(st.secrets["GEMINI_API_KEY"])
     except Exception:
         pass
-    return os.getenv("GEMINI_API_KEY", "")
+    if not value:
+        value = os.getenv("GEMINI_API_KEY", "")
+
+    # Remove accidental whitespace / wrapping quotes from Streamlit Secrets.
+    value = value.strip().strip('"').strip("'").strip()
+    return value
 
 
 def ask_gemini(question, tour_context):
+    """Call Gemini Developer API directly with x-goog-api-key.
+
+    Using the REST header avoids accidental OAuth/Bearer authentication routing.
+    """
+    import json
+    import urllib.error
+    import urllib.request
+
     api_key = get_ai_key()
     if not api_key:
         return ("🤖 Trợ lý AI chưa được cấu hình GEMINI_API_KEY. "
-                "Bạn vẫn có thể xem và đặt tour bình thường. "
-                "Trên Streamlit Cloud, thêm GEMINI_API_KEY trong Settings → Secrets.")
-    try:
-        from google import genai
-        client = genai.Client(api_key=api_key)
-        prompt = f"""
+                "Trên Streamlit Cloud: Manage app → Settings → Secrets, "
+                "thêm GEMINI_API_KEY = API key lấy từ Google AI Studio.")
+
+    # These are OAuth/access-token patterns, not Gemini Developer API keys.
+    oauth_like = (api_key.startswith("ya29."), api_key.startswith("1//"))
+    if any(oauth_like):
+        return ("❌ GEMINI_API_KEY hiện đang là OAuth access token, không phải Gemini API key. "
+                "Hãy tạo/copy API key trong Google AI Studio → API Keys rồi thay giá trị "
+                "GEMINI_API_KEY trên Streamlit Cloud.")
+
+    prompt = f"""
 Bạn là Trợ lý AI của SMART TOUR, tư vấn du lịch bằng tiếng Việt.
 Hãy trả lời ngắn gọn, lịch sự, rõ ràng. Chỉ sử dụng giá tour trong dữ liệu được cung cấp,
 không tự bịa giá. Nếu khách muốn đặt tour, hãy hướng dẫn họ sang trang Đặt tour.
@@ -70,10 +90,57 @@ DỮ LIỆU TOUR:
 CÂU HỎI KHÁCH:
 {question}
 """
-        response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
-        return (getattr(response, "text", None) or "AI chưa tạo được câu trả lời.").strip()
+
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+    payload = {
+        "contents": [
+            {"parts": [{"text": prompt}]}
+        ]
+    }
+    body = json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(
+        url,
+        data=body,
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "x-goog-api-key": api_key,
+        },
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=45) as response:
+            data = json.loads(response.read().decode("utf-8"))
+
+        candidates = data.get("candidates") or []
+        if not candidates:
+            return "AI chưa tạo được câu trả lời."
+
+        parts = candidates[0].get("content", {}).get("parts", [])
+        text_parts = [str(part.get("text", "")) for part in parts if part.get("text")]
+        answer = "\n".join(text_parts).strip()
+        return answer or "AI chưa tạo được câu trả lời."
+
+    except urllib.error.HTTPError as e:
+        try:
+            detail = e.read().decode("utf-8", errors="replace")
+            parsed = json.loads(detail)
+            msg = parsed.get("error", {}).get("message", detail)
+            reason = ""
+            details = parsed.get("error", {}).get("details", [])
+            for item in details:
+                if item.get("reason"):
+                    reason = item["reason"]
+                    break
+            if e.code == 401:
+                return (f"❌ Gemini từ chối xác thực (401). {msg} "
+                        f"{('Mã lỗi: ' + reason + '. ') if reason else ''}"
+                        "Hãy tạo API key mới tại Google AI Studio và cập nhật GEMINI_API_KEY.")
+            return f"❌ Gemini trả về HTTP {e.code}: {msg}"
+        except Exception:
+            return f"❌ Gemini trả về HTTP {e.code}: {e.reason}"
     except Exception as e:
-        return f"Không thể gọi AI lúc này: {e}"
+        return f"❌ Không thể kết nối Gemini: {e}"
 
 
 def new_connection():
