@@ -275,6 +275,55 @@ def calc_quote(tour, depart, ages, hotel, rooms, extras, promo_code):
 # ----------------------------------------------------------------------------
 db_error = init_db()
 
+# --- CSS TÙY CHỈNH CHATBOT CHUYÊN NGHIỆP ---
+st.markdown("""
+<style>
+    .ai-card {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        color: white;
+        padding: 12px 15px;
+        border-radius: 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .ai-title {
+        font-size: 15px;
+        font-weight: 700;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .ai-subtitle {
+        font-size: 11px;
+        opacity: 0.85;
+        margin-top: 2px;
+    }
+    .chat-bubble-bot {
+        background-color: #f0f2f5;
+        color: #1c1e21;
+        padding: 10px 12px;
+        border-radius: 15px 15px 15px 2px;
+        margin-bottom: 8px;
+        font-size: 13px;
+        line-height: 1.4;
+        border: 1px solid #e4e6eb;
+    }
+    .chat-bubble-user {
+        background-color: #0084ff;
+        color: white;
+        padding: 10px 12px;
+        border-radius: 15px 15px 2px 15px;
+        margin-bottom: 8px;
+        font-size: 13px;
+        line-height: 1.4;
+        text-align: right;
+        margin-left: auto;
+        max-width: 85%;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 with st.sidebar:
     st.header("🗄️ Cơ sở dữ liệu")
     if db_error:
@@ -284,49 +333,93 @@ with st.sidebar:
         
     st.divider()
 
-    # ================= KHU VỰC CHATBOT AI NHỎ GỌN PHÍA BÊN TRÁI =================
-    st.subheader("💬 Trợ lý AI Smart Tour")
-    
-    try:
-        # Sử dụng thư viện google-generativeai phổ biến
-        import google.generativeai as genai
-        genai.configure(api_key=API_KEY)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+    # ================= KHU VỰC CHATBOT AI SANG TRỌNG =================
+    st.markdown("""
+        <div class="ai-card">
+            <div class="ai-title">🤖 Trợ lý AI Smart Tour</div>
+            <div class="ai-subtitle">Tư vấn lịch trình & báo giá tự động 24/7</div>
+        </div>
+    """, unsafe_allow_html=True)
 
-        if "ai_chat_history" not in st.session_state:
-            st.session_state.ai_chat_history = [
-                {"role": "model", "parts": ["Xin chào! Tôi là Trợ lý AI Smart Tour 🌴. Bạn cần tư vấn tour nào hôm nay?"]}
-            ]
-
-        # Khung chat nhỏ gọn trên sidebar
-        chat_box = st.container(height=280)
-        with chat_box:
-            for msg in st.session_state.ai_chat_history:
-                role = "assistant" if msg["role"] == "model" else "user"
-                with st.chat_message(role):
-                    st.markdown(msg["parts"][0])
-
-        if prompt := st.chat_input("Hỏi AI..."):
-            st.session_state.ai_chat_history.append({"role": "user", "parts": [prompt]})
-            
-            system_context = f"Bạn là trợ lý tư vấn du lịch của Smart Tour. Các tour hiện có: {list(TOURS.values())}."
-            
-            # Khởi tạo trò chuyện
-            chat = model.start_chat(history=st.session_state.ai_chat_history[:-1])
-            response = chat.send_message(f"{system_context}\n\nKhách hàng hỏi: {prompt}")
-            
-            st.session_state.ai_chat_history.append({"role": "model", "parts": [response.text]})
+    # Nút bấm làm mới hội thoại
+    col_ai1, col_ai2 = st.columns([3, 1])
+    with col_ai2:
+        if st.button("🗑️ Xóa", help="Làm mới cuộc trò chuyện"):
+            st.session_state.ai_chat_history = []
             st.rerun()
 
-    except Exception as e:
-        st.error(f"Lỗi kết nối AI: {e}")
+    # Kiểm tra thư viện AI
+    has_genai = False
+    sdk_type = None
+
+    try:
+        import google.generativeai as genai
+        has_genai = True
+        sdk_type = "legacy"
+    except ImportError:
+        try:
+            import google.genai as genai
+            has_genai = True
+            sdk_type = "new"
+        except ImportError:
+            has_genai = False
+
+    if not has_genai:
+        st.info("💡 Bạn cần thêm `google-generativeai` vào `requirements.txt` trên GitHub để bật AI.")
+    else:
+        try:
+            if sdk_type == "legacy":
+                genai.configure(api_key=API_KEY)
+                model = genai.GenerativeModel("gemini-1.5-flash")
+            else:
+                client = genai.Client(api_key=API_KEY)
+
+            if "ai_chat_history" not in st.session_state or not st.session_state.ai_chat_history:
+                st.session_state.ai_chat_history = [
+                    {"role": "model", "content": "Xin chào! Tôi là Trợ lý AI Smart Tour 🌴. Bạn cần tư vấn tour gì hôm nay?"}
+                ]
+
+            # Khung chat hiển thị dạng bong bóng tin nhắn tinh tế
+            chat_box = st.container(height=320)
+            with chat_box:
+                for msg in st.session_state.ai_chat_history:
+                    if msg["role"] == "model":
+                        st.markdown(f'<div class="chat-bubble-bot">🤖 {msg["content"]}</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown(f'<div class="chat-bubble-user">{msg["content"]}</div>', unsafe_allow_html=True)
+
+            # Ô nhập liệu nhắn tin
+            if user_prompt := st.chat_input("Nhập câu hỏi..."):
+                st.session_state.ai_chat_history.append({"role": "user", "content": user_prompt})
+                
+                tour_info = "\n".join([f"- {v['name']}: {v['days']} ngày, giá từ {v['base']:,}đ, gồm {v['highlights']}" for v in TOURS.values()])
+                system_context = f"Bạn là nhân viên tư vấn du lịch Smart Tour chuyên nghiệp, thân thiện. Danh sách tour đang có:\n{tour_info}\nTrả lời ngắn gọn, rõ ràng, tối đa 3-4 câu."
+
+                if sdk_type == "legacy":
+                    history_legacy = []
+                    for m in st.session_state.ai_chat_history[:-1]:
+                        history_legacy.append({"role": m["role"], "parts": [m["content"]]})
+                    chat = model.start_chat(history=history_legacy)
+                    resp = chat.send_message(f"{system_context}\n\nKhách hỏi: {user_prompt}")
+                    reply = resp.text
+                else:
+                    resp = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=f"{system_context}\n\nKhách hỏi: {user_prompt}"
+                    )
+                    reply = resp.text
+
+                st.session_state.ai_chat_history.append({"role": "model", "content": reply})
+                st.rerun()
+
+        except Exception as e:
+            st.error(f"Lỗi AI: {e}")
 
 # ----------------------------------------------------------------------------
 # GIAO DIỆN CHÍNH
 # ----------------------------------------------------------------------------
 st.title("🌴 Smart Tour - Quản lý & Đặt tour")
 
-# KHAI BÁO CÁC TAB TRANG CHÍNH
 tab_book, tab_manage, tab_stats, tab_policy = st.tabs([
     "🧭 Đặt tour", 
     "📋 Đơn đặt của tôi", 
