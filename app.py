@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 
 import mysql.connector
 import pandas as pd
+from google import genai
 import streamlit as st
 
 # --- CẤU HÌNH TRANG ---
@@ -23,8 +24,8 @@ DB_CONFIG = {
     "charset": "utf8mb4",
 }
 
-# GEMINI API KEY FIX CỐ ĐỊNH
-API_KEY = st.secrets.get("GEMINI_API_KEY", "")
+api_key = st.secrets.get("GEMINI_API_KEY", "")
+client = genai.Client(api_key=api_key)
 
 VAT_RATE = 0.08
 DEPOSIT_RATE = 0.30
