@@ -148,17 +148,10 @@ def hotel_night_multiplier(d: date):
         m *= 1 + WEEKEND_HOTEL_SURCHARGE
     return m, s, weekend
 
-# --- DATABASE DDL ĐÃ SỬA LỖI TẮT KHÓA NGOẠI KHI XÓA BẢNG ---
+# --- DATABASE DDL CHUẨN - BỎ RÀNG BUỘC KHÓA NGOẠI TRÁNH LỖI AIVEN ---
 DDL = [
-    # 1. Tắt kiểm tra khóa ngoại để xóa được bảng cũ bị lỗi
-    "SET FOREIGN_KEY_CHECKS = 0",
-    "DROP TABLE IF EXISTS booking_lines",
-    "DROP TABLE IF EXISTS booking_guests",
-    "DROP TABLE IF EXISTS bookings",
-    "SET FOREIGN_KEY_CHECKS = 1",
-    
-    # 2. Tạo lại các bảng mới chuẩn cấu trúc
-    """CREATE TABLE bookings (
+    # 1. Tạo bảng bookings
+    """CREATE TABLE IF NOT EXISTS bookings (
         code VARCHAR(20) PRIMARY KEY,
         created_at DATETIME NOT NULL,
         customer VARCHAR(120) NOT NULL,
@@ -185,22 +178,24 @@ DDL = [
         INDEX idx_phone (phone), INDEX idx_email (email), INDEX idx_depart (depart_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
     
-    """CREATE TABLE booking_guests (
+    # 2. Tạo bảng booking_guests
+    """CREATE TABLE IF NOT EXISTS booking_guests (
         id INT AUTO_INCREMENT PRIMARY KEY,
         booking_code VARCHAR(20) NOT NULL,
         guest_no INT NOT NULL,
         age INT NOT NULL,
         age_group VARCHAR(60),
-        FOREIGN KEY (booking_code) REFERENCES bookings(code) ON DELETE CASCADE
+        INDEX idx_booking_code (booking_code)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
     
-    """CREATE TABLE booking_lines (
+    # 3. Tạo bảng booking_lines
+    """CREATE TABLE IF NOT EXISTS booking_lines (
         id INT AUTO_INCREMENT PRIMARY KEY,
         booking_code VARCHAR(20) NOT NULL,
         category VARCHAR(40),
         detail VARCHAR(300),
         amount DECIMAL(14,2) NOT NULL,
-        FOREIGN KEY (booking_code) REFERENCES bookings(code) ON DELETE CASCADE
+        INDEX idx_booking_code (booking_code)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
 ]
 
