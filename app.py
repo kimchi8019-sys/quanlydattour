@@ -284,49 +284,77 @@ with st.sidebar:
         
     st.divider()
 
-    # ================= KHU VỰC CHATBOT AI NHỎ GỌN PHÍA BÊN TRÁI =================
+    # ================= KHU VỰC CHATBOT AI NHỎ GỌN =================
     st.subheader("💬 Trợ lý AI Smart Tour")
     
+    # Kiểm tra động 2 loại thư viện SDK của Google
+    has_genai = False
+    sdk_type = None
+
     try:
-        # Sử dụng thư viện google-generativeai phổ biến
         import google.generativeai as genai
-        genai.configure(api_key=API_KEY)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        has_genai = True
+        sdk_type = "legacy"
+    except ImportError:
+        try:
+            import google.genai as genai
+            has_genai = True
+            sdk_type = "new"
+        except ImportError:
+            has_genai = False
 
-        if "ai_chat_history" not in st.session_state:
-            st.session_state.ai_chat_history = [
-                {"role": "model", "parts": ["Xin chào! Tôi là Trợ lý AI Smart Tour 🌴. Bạn cần tư vấn tour nào hôm nay?"]}
-            ]
+    if not has_genai:
+        st.warning("⚠️ Chưa cài thư viện AI trên máy.")
+        st.code("pip install google-generativeai", language="bash")
+    else:
+        try:
+            if sdk_type == "legacy":
+                genai.configure(api_key=API_KEY)
+                model = genai.GenerativeModel("gemini-1.5-flash")
+            else:
+                client = genai.Client(api_key=API_KEY)
 
-        # Khung chat nhỏ gọn trên sidebar
-        chat_box = st.container(height=280)
-        with chat_box:
-            for msg in st.session_state.ai_chat_history:
-                role = "assistant" if msg["role"] == "model" else "user"
-                with st.chat_message(role):
-                    st.markdown(msg["parts"][0])
+            if "ai_chat_history" not in st.session_state:
+                st.session_state.ai_chat_history = [
+                    {"role": "model", "content": "Xin chào! Tôi là Trợ lý AI Smart Tour 🌴. Bạn cần tư vấn tour nào?"}
+                ]
 
-        if prompt := st.chat_input("Hỏi AI..."):
-            st.session_state.ai_chat_history.append({"role": "user", "parts": [prompt]})
-            
-            system_context = f"Bạn là trợ lý tư vấn du lịch của Smart Tour. Các tour hiện có: {list(TOURS.values())}."
-            
-            # Khởi tạo trò chuyện
-            chat = model.start_chat(history=st.session_state.ai_chat_history[:-1])
-            response = chat.send_message(f"{system_context}\n\nKhách hàng hỏi: {prompt}")
-            
-            st.session_state.ai_chat_history.append({"role": "model", "parts": [response.text]})
-            st.rerun()
+            chat_box = st.container(height=280)
+            with chat_box:
+                for msg in st.session_state.ai_chat_history:
+                    role = "assistant" if msg["role"] == "model" else "user"
+                    with st.chat_message(role):
+                        st.markdown(msg["content"])
 
-    except Exception as e:
-        st.error(f"Lỗi kết nối AI: {e}")
+            if prompt := st.chat_input("Hỏi AI..."):
+                st.session_state.ai_chat_history.append({"role": "user", "content": prompt})
+                system_context = f"Bạn là trợ lý tư vấn du lịch Smart Tour. Danh sách tour hiện có: {list(TOURS.values())}."
+                
+                if sdk_type == "legacy":
+                    history_legacy = []
+                    for m in st.session_state.ai_chat_history[:-1]:
+                        history_legacy.append({"role": m["role"], "parts": [m["content"]]})
+                    chat = model.start_chat(history=history_legacy)
+                    resp = chat.send_message(f"{system_context}\n\nKhách hỏi: {prompt}")
+                    reply = resp.text
+                else:
+                    resp = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=f"{system_context}\n\nKhách hỏi: {prompt}"
+                    )
+                    reply = resp.text
+
+                st.session_state.ai_chat_history.append({"role": "model", "content": reply})
+                st.rerun()
+
+        except Exception as e:
+            st.error(f"Lỗi AI: {e}")
 
 # ----------------------------------------------------------------------------
 # GIAO DIỆN CHÍNH
 # ----------------------------------------------------------------------------
 st.title("🌴 Smart Tour - Quản lý & Đặt tour")
 
-# KHAI BÁO CÁC TAB TRANG CHÍNH
 tab_book, tab_manage, tab_stats, tab_policy = st.tabs([
     "🧭 Đặt tour", 
     "📋 Đơn đặt của tôi", 
