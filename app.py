@@ -23,11 +23,11 @@ DB_CONFIG = {
     "connection_timeout": 15,
     "charset": "utf8mb4",
 }
-import google.generativeai as genai
+from google import genai
 
 # Lấy khóa API từ Secrets
 API_KEY = st.secrets.get("GEMINI_API_KEY", "")
-genai.configure(api_key=API_KEY)
+client = genai.Client(api_key=API_KEY)
 
 VAT_RATE = 0.08
 DEPOSIT_RATE = 0.30
