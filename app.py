@@ -1,15 +1,12 @@
 import math
 import os
 import uuid
-from collections import Counter
-from datetime import date, datetime, timedelta
-
+from datetime import date, datetime
 import mysql.connector
-import pandas as pd
 import streamlit as st
 
-# --- CẤU HÌNH TRANG ---
-st.set_page_config(page_title="Smart Tour", page_icon="🌴", layout="wide")
+# --- CẤU HÌNH TRANG KHÁCH HÀNG ---
+st.set_page_config(page_title="Smart Tour - Đặt Tour Du Lịch", page_icon="🌴", layout="wide")
 
 # --- CẤU HÌNH MYSQL AIVEN ---
 DB_CONFIG = {
@@ -99,19 +96,10 @@ def init_db():
 
 init_db()
 
-# --- CSS TÙY CHỈNH GIAO DIỆN MODERN ---
+# --- CSS STYLING ---
 st.markdown("""
 <style>
     .main { background-color: #f8f9fa; }
-    .stButton>button {
-        background-color: #0066cc;
-        color: white;
-        border-radius: 8px;
-        border: none;
-        padding: 0.5rem 1rem;
-        font-weight: 600;
-    }
-    .stButton>button:hover { background-color: #004c99; color: white; }
     .card {
         background: white;
         padding: 1.5rem;
@@ -119,30 +107,18 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         margin-bottom: 1rem;
     }
-    .metric-card {
-        background: linear-gradient(135deg, #0066cc 0%, #004c99 100%);
-        color: white;
-        padding: 1.2rem;
-        border-radius: 10px;
-        text-align: center;
-    }
 </style>
 """, unsafe_allow_html=True)
 
-# --- SIDEBAR ĐIỀU HƯỚNG ---
-with st.sidebar:
-    st.title("🌴 Smart Tour Admin")
-    st.markdown("---")
-    menu = st.radio("Điều hướng hệ thống", ["Danh Sách Tour", "Đặt Tour Mới", "Quản Lý Đơn Đặt Tour", "Thống Kê Doanh Thu"])
-
-# --- HEADER TRANG ---
-st.title("☀️ Hệ Thống Quản Lý Đặt Tour Du Lịch")
-st.caption("Giải pháp quản lý tour, booking và thống kê doanh thu")
+st.title("☀️ Smart Tour - Đặt Tour Du Lịch Uy Tín")
+st.caption("Khám phá các hành trình du lịch tuyệt vời cùng Smart Tour")
 st.markdown("---")
 
+tab1, tab2 = st.tabs(["📋 Danh Sách Tour", "📝 Đặt Tour Mới"])
+
 # --- TAB 1: DANH SÁCH TOUR ---
-if menu == "Danh Sách Tour":
-    st.header("📋 Danh Sách Tour Du Lịch Nổi Bật")
+with tab1:
+    st.header("Danh Sách Tour Nổi Bật")
     cols = st.columns(2)
     for idx, (t_id, tour) in enumerate(TOURS.items()):
         with cols[idx % 2]:
@@ -157,8 +133,8 @@ if menu == "Danh Sách Tour":
             """, unsafe_allow_html=True)
 
 # --- TAB 2: ĐẶT TOUR MỚI ---
-elif menu == "Đặt Tour Mới":
-    st.header("📝 Biểu Mẫu Đặt Tour Trực Tuyến")
+with tab2:
+    st.header("Biểu Mẫu Đặt Tour Trực Tuyến")
     
     with st.form("booking_form"):
         col1, col2 = st.columns(2)
@@ -212,65 +188,7 @@ elif menu == "Đặt Tour Mới":
                         cursor.close()
                         conn.close()
                         
-                        st.success(f"🎉 Đặt tour thành công! Mã đơn: **{booking_id}**")
-                        st.info(f"Tổng tiền: **{final_total:,.0f} VNĐ** (Đã bao gồm VAT) | Tối thiểu cọc: **{deposit_required:,.0f} VNĐ**")
+                        st.success(f"🎉 Đặt tour thành công! Mã đơn của bạn: **{booking_id}**")
+                        st.info(f"Tổng tiền: **{final_total:,.0f} VNĐ** (Đã gồm VAT) | Tiền cọc cần thanh toán: **{deposit_required:,.0f} VNĐ**")
                     except Exception as e:
                         st.error(f"Lỗi lưu booking: {e}")
-
-# --- TAB 3: QUẢN LÝ ĐƠN ĐẶT TOUR ---
-elif menu == "Quản Lý Đơn Đặt Tour":
-    st.header("📂 Danh Sách Đơn Đặt Tour Trong Hệ Thống")
-    
-    conn = get_db_connection()
-    if conn:
-        try:
-            df = pd.read_sql("SELECT * FROM bookings ORDER BY created_at DESC", conn)
-            conn.close()
-            
-            if df.empty:
-                st.warning("Chưa có đơn đặt tour nào trong hệ thống.")
-            else:
-                st.dataframe(
-                    df,
-                    column_config={
-                        "id": "Mã Booking",
-                        "customer_name": "Khách Hàng",
-                        "phone": "Số Điện Thoại",
-                        "tour_name": "Tên Tour",
-                        "departure_date": "Ngày Đi",
-                        "total_price": st.column_config.NumberColumn("Tổng Tiền (VNĐ)", format="%d"),
-                        "deposit_amount": st.column_config.NumberColumn("Tiền Cọc (VNĐ)", format="%d"),
-                        "status": "Trạng Thái"
-                    },
-                    use_container_width=True
-                )
-        except Exception as e:
-            st.error(f"Lỗi tải dữ liệu: {e}")
-
-# --- TAB 4: THỐNG KÊ DOANH THU ---
-elif menu == "Thống Kê Doanh Thu":
-    st.header("📊 Báo Cáo & Thống Kê Kinh Doanh")
-    
-    conn = get_db_connection()
-    if conn:
-        try:
-            df = pd.read_sql("SELECT * FROM bookings", conn)
-            conn.close()
-            
-            if not df.empty:
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Tổng Đơn Đặt", f"{len(df)} đơn")
-                with col2:
-                    st.metric("Tổng Doanh Thu", f"{df['total_price'].sum():,.0f} VNĐ")
-                with col3:
-                    st.metric("Tổng Tiền Cọc Đã Nhận", f"{df['deposit_amount'].sum():,.0f} VNĐ")
-                
-                st.markdown("---")
-                st.subheader("Doanh Thu Theo Tour")
-                tour_summary = df.groupby("tour_name")["total_price"].sum().reset_index()
-                st.bar_chart(tour_summary, x="tour_name", y="total_price")
-            else:
-                st.info("Chưa có dữ liệu thống kê.")
-        except Exception as e:
-            st.error(f"Lỗi tải thống kê: {e}")
